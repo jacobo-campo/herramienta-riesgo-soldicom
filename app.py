@@ -192,6 +192,34 @@ div[role="dialog"] h4 {{
     font-weight: 700 !important;
 }}
 
+/* =========================
+   FIX: Métricas de información de la EDS
+   ========================= */
+
+[data-testid="stMetric"],
+[data-testid="stMetric"] label,
+[data-testid="stMetric"] div,
+[data-testid="stMetric"] span {{
+    color: #0F172A !important;   /* azul oscuro */
+    opacity: 1 !important;
+}}
+
+[data-testid="stMetricLabel"],
+[data-testid="stMetricLabel"] p,
+[data-testid="stMetricLabel"] span {{
+    color: #0F172A !important;
+    font-weight: 700 !important;
+    opacity: 1 !important;
+}}
+
+[data-testid="stMetricValue"],
+[data-testid="stMetricValue"] div,
+[data-testid="stMetricValue"] span {{
+    color: #1A3D75 !important;   /* azul SOLDICOM */
+    font-weight: 800 !important;
+    opacity: 1 !important;
+}}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -671,7 +699,8 @@ elif st.session_state.step == 2:
             go(1)
             st.rerun()
         st.stop()
-    
+
+    st.header("Ingreso de información del contrato")
     c1, c2, c3 = st.columns(3)
     with c1:
         st.subheader("Estructura")
