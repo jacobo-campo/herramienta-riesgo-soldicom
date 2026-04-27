@@ -198,7 +198,10 @@ div[role="dialog"] h4 {{
 # -----------------------------
 # HEADER (logo arriba - Principal)
 # -----------------------------
-LOGO_PATH = "/mnt/data/logo-soldicom1.png"
+LOGO_PATH = "assets/logo-soldicom1.png"
+BASE_EDS_PATH = "assets/BASE_EDS.xlsx"
+LOGO_FENDI_PATH = "assets/logo-fendipetroleo.png"
+LOGO_COMCE_PATH = "assets/log-comce1.png"
 
 col_logo, col_title = st.columns([1, 4])
 with col_logo:
@@ -670,13 +673,13 @@ col1, col2, col3 = st.columns([1, 2, 2])
 
 with col2:
     try:
-        st.image(Image.open("/mnt/data/logo-fendipetroleo.png"), width=220)
+        st.image(Image.open(LOGO_FENDI_PATH), width=220)
     except Exception:
         pass
 
 with col3:
     try:
-        st.image(Image.open("/mnt/data/log-comce1.png"), width=200)
+        st.image(Image.open(LOGO_COMCE_PATH), width=200)
     except Exception:
         pass
 
