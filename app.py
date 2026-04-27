@@ -770,19 +770,54 @@ elif st.session_state.step == 2:
 
         st.subheader("Información de la EDS consultada")
 
-        m1, m2, m3, m4, m5 = st.columns(5)
+#        m1, m2, m3, m4, m5 = st.columns(5)
+#
+#        with m1:
+#            st.metric("SICOM", eds.get("SICOM", "N/D"))
+#        with m2:
+#            st.metric("Bandera", eds.get("BANDERA", "N/D"))
+#        with m3:
+#            st.metric("Departamento", eds.get("DEPARTAMENTO", "N/D"))
+#        with m4:
+#            st.metric("Municipio", eds.get("MUNICIPIO", "N/D"))
+#        with m5:
+#            st.metric("Competidores", len(competitors_df))
 
-        with m1:
-            st.metric("SICOM", eds.get("SICOM", "N/D"))
-        with m2:
-            st.metric("Bandera", eds.get("BANDERA", "N/D"))
-        with m3:
-            st.metric("Departamento", eds.get("DEPARTAMENTO", "N/D"))
-        with m4:
-            st.metric("Municipio", eds.get("MUNICIPIO", "N/D"))
-        with m5:
-            st.metric("Competidores", len(competitors_df))
+        st.markdown(f"""
+        <div style="
+            display:grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap:12px;
+            margin-top:8px;
+            margin-bottom:10px;
+        ">
+            <div style="background:white; border-radius:12px; padding:10px 12px; border:1px solid rgba(15,23,42,0.08);">
+                <div style="font-size:11px; color:#475569; font-weight:700;">SICOM</div>
+                <div style="font-size:18px; color:#1A3D75; font-weight:800;">{eds.get("SICOM", "N/D")}</div>
+            </div>
 
+            <div style="background:white; border-radius:12px; padding:10px 12px; border:1px solid rgba(15,23,42,0.08);">
+                <div style="font-size:11px; color:#475569; font-weight:700;">Bandera</div>
+                <div style="font-size:18px; color:#1A3D75; font-weight:800;">{eds.get("BANDERA", "N/D")}</div>
+            </div>
+
+            <div style="background:white; border-radius:12px; padding:10px 12px; border:1px solid rgba(15,23,42,0.08);">
+                <div style="font-size:11px; color:#475569; font-weight:700;">Departamento</div>
+                <div style="font-size:18px; color:#1A3D75; font-weight:800;">{eds.get("DEPARTAMENTO", "N/D")}</div>
+            </div>
+
+            <div style="background:white; border-radius:12px; padding:10px 12px; border:1px solid rgba(15,23,42,0.08);">
+                <div style="font-size:11px; color:#475569; font-weight:700;">Municipio</div>
+                <div style="font-size:18px; color:#1A3D75; font-weight:800;">{eds.get("MUNICIPIO", "N/D")}</div>
+            </div>
+
+            <div style="background:white; border-radius:12px; padding:10px 12px; border:1px solid rgba(15,23,42,0.08);">
+                <div style="font-size:11px; color:#475569; font-weight:700;">Competidores</div>
+                <div style="font-size:18px; color:#1A3D75; font-weight:800;">{len(competitors_df)}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
         st.markdown(
             f"**Nombre comercial de la EDS:** {eds.get('NOMBRE COMERCIAL', 'No disponible')}"
         )
@@ -856,6 +891,49 @@ else:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.header("Resultados")
 
+        # -----------------------------
+        # Información de la EDS y mercado relevante
+        # -----------------------------
+        eds_info = st.session_state.get("eds_info", None)
+        competitors_df = st.session_state.get("competitors_df", pd.DataFrame())
+
+        if eds_info is not None:
+            st.subheader("EDS consultada y mercado relevante")
+
+            st.markdown(
+                f"""
+                <div style="
+                    background:#FFFFFF;
+                    border:1px solid rgba(15,23,42,0.08);
+                    border-radius:14px;
+                    padding:14px 18px;
+                    margin-bottom:12px;
+                    box-shadow:0 4px 12px rgba(15,23,42,0.06);
+                ">
+                    <p style="margin:0; color:#0F172A; font-size:16px;">
+                        <b>Nombre comercial:</b> {eds_info.get("NOMBRE COMERCIAL", "N/D")} &nbsp; | &nbsp;
+                        <b>SICOM:</b> {eds_info.get("SICOM", "N/D")} &nbsp; | &nbsp;
+                        <b>Bandera:</b> {eds_info.get("BANDERA", "N/D")}
+                    </p>
+                    <p style="margin:6px 0 0 0; color:#0F172A; font-size:16px;">
+                        <b>Departamento:</b> {eds_info.get("DEPARTAMENTO", "N/D")} &nbsp; | &nbsp;
+                        <b>Municipio:</b> {eds_info.get("MUNICIPIO", "N/D")} &nbsp; | &nbsp;
+                        <b>Competidores identificados:</b> {len(competitors_df)}
+                    </p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            with st.expander("Ver competidores del mercado relevante"):
+                st.dataframe(
+                    competitors_df,
+                    width="stretch",
+                    hide_index=True
+                )
+
+            st.markdown('<hr class="soft-hr"/>', unsafe_allow_html=True)
+        
         left, mid, right = st.columns([1.05, 1.2, 1.1])
 
         with left:
@@ -901,8 +979,21 @@ else:
 
             st.markdown("")
             # Exportación (PDF y Excel)
-            pdf_buffer = build_pdf_report(res, logo_path=LOGO_PATH)
-            xlsx_buffer = build_excel_report(res)
+            eds_info_report = st.session_state.get("eds_info", None)
+            competitors_report = st.session_state.get("competitors_df", pd.DataFrame())
+
+            pdf_buffer = build_pdf_report(
+                res,
+                logo_path=LOGO_PATH,
+                eds_info=eds_info_report,
+                competitors_df=competitors_report
+            )
+
+            xlsx_buffer = build_excel_report(
+                res,
+                eds_info=eds_info_report,
+                competitors_df=competitors_report
+            )
 
             st.download_button(
                 label="📄 Exportar a PDF",
