@@ -462,9 +462,15 @@ params = {
     "center": center,
 }
 
-def build_pdf_report(res: dict, logo_path: str = None) -> io.BytesIO:
+def build_pdf_report(
+    res: dict,
+    logo_path: str = None,
+    eds_info: dict = None,
+    competitors_df: pd.DataFrame = None
+) -> io.BytesIO:
+    
     """
-    Genera un PDF simple con branding + resumen + drivers.
+    Genera un PDF con branding + resumen + drivers.
     Devuelve un BytesIO listo para st.download_button.
     """
     buffer = io.BytesIO()
@@ -490,8 +496,74 @@ def build_pdf_report(res: dict, logo_path: str = None) -> io.BytesIO:
     c.drawString(200, h - 120, f"Probabilidad estimada: {100*res['p']:.1f}%")
     c.drawString(420, h - 120, f"Semáforo: {res['label']}")
 
+    # Información de la EDS consultada
+    y = h - 150
+
+    if eds_info is not None:
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(40, y, "Información de la EDS consultada")
+        y -= 16
+
+        c.setFont("Helvetica", 9)
+        c.drawString(50, y, f"SICOM: {eds_info.get('SICOM', 'N/D')}")
+        y -= 12
+        c.drawString(50, y, f"Nombre comercial: {eds_info.get('NOMBRE COMERCIAL', 'N/D')}")
+        y -= 12
+        c.drawString(50, y, f"Bandera: {eds_info.get('BANDERA', 'N/D')}")
+        y -= 12
+        c.drawString(50, y, f"Departamento: {eds_info.get('DEPARTAMENTO', 'N/D')}")
+        y -= 12
+        c.drawString(50, y, f"Municipio: {eds_info.get('MUNICIPIO', 'N/D')}")
+        y -= 16
+
+    if competitors_df is not None and not competitors_df.empty:
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(40, y, "Competidores en el mercado relevante")
+        y -= 14
+
+        c.setFont("Helvetica", 9)
+        c.drawString(50, y, f"Número de competidores identificados: {len(competitors_df)}")
+        y -= 16
+
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(50, y, "COMPETIDOR")
+        c.drawString(130, y, "NOMBRE COMERCIAL")
+        c.drawString(390, y, "BANDERA")
+        y -= 10
+
+        c.setFont("Helvetica", 8)
+
+        # En PDF se muestran los primeros 15 para evitar páginas muy largas.
+        # El Excel contiene la tabla completa.
+        for _, row in competitors_df.head(15).iterrows():
+            comp = str(row.get("COMPETIDOR", ""))
+            nom = str(row.get("NOMBRE COMERCIAL", ""))
+            bandera = str(row.get("BANDERA_COM", ""))
+
+            if len(nom) > 45:
+                nom = nom[:42] + "..."
+
+            c.drawString(50, y, comp)
+            c.drawString(130, y, nom)
+            c.drawString(390, y, bandera)
+            y -= 10
+
+            if y < 80:
+                c.showPage()
+                y = h - 60
+
+        if len(competitors_df) > 15:
+            y -= 4
+            c.setFont("Helvetica-Oblique", 8)
+            c.drawString(
+                50,
+                y,
+                "Nota: el PDF muestra los primeros 15 competidores. El archivo Excel incluye la tabla completa."
+            )
+            y -= 14
+    
     # Inputs
-    y = h - 155
+    y = h - 10
     c.setFont("Helvetica-Bold", 11)
     c.drawString(40, y, "Información diligenciada")
     y -= 16
@@ -534,7 +606,12 @@ def build_pdf_report(res: dict, logo_path: str = None) -> io.BytesIO:
     return buffer
 
 
-def build_excel_report(res: dict) -> io.BytesIO:
+def build_excel_report(
+    res: dict,
+    eds_info: dict = None,
+    competitors_df: pd.DataFrame = None
+) -> io.BytesIO:
+    
     """
     Genera un Excel con 3 hojas:
     - Resumen
@@ -543,13 +620,25 @@ def build_excel_report(res: dict) -> io.BytesIO:
     """
     output = io.BytesIO()
 
-    resumen_df = pd.DataFrame([{
+    resumen_data = {
         "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "Puntaje": round(res["score"], 2),
         "Probabilidad_%": round(100*res["p"], 2),
         "Semáforo": res["label"],
         "Bucket": res["bucket"],
-    }])
+    }
+
+    if eds_info is not None:
+        resumen_data.update({
+            "SICOM": eds_info.get("SICOM", ""),
+            "Nombre_EDS": eds_info.get("NOMBRE COMERCIAL", ""),
+            "Bandera_EDS": eds_info.get("BANDERA", ""),
+            "Departamento": eds_info.get("DEPARTAMENTO", ""),
+            "Municipio": eds_info.get("MUNICIPIO", ""),
+            "Numero_competidores": 0 if competitors_df is None else len(competitors_df),
+        })
+
+    resumen_df = pd.DataFrame([resumen_data])
 
     respuestas_df = pd.DataFrame([res["inputs"]]).T.reset_index()
     respuestas_df.columns = ["Variable", "Valor"]
@@ -561,8 +650,23 @@ def build_excel_report(res: dict) -> io.BytesIO:
         respuestas_df.to_excel(writer, sheet_name="Respuestas", index=False)
         drivers_df.to_excel(writer, sheet_name="Drivers", index=False)
 
+        if eds_info is not None:
+            eds_df = pd.DataFrame([eds_info])
+            eds_df.to_excel(writer, sheet_name="EDS", index=False)
+
+        if competitors_df is not None and not competitors_df.empty:
+            competitors_df.to_excel(writer, sheet_name="Competidores", index=False)
+
         # Ajuste simple de anchos
-        for sheet in ["Resumen", "Respuestas", "Drivers"]:
+        sheets_to_format = ["Resumen", "Respuestas", "Drivers"]
+
+        if eds_info is not None:
+            sheets_to_format.append("EDS")
+
+        if competitors_df is not None and not competitors_df.empty:
+            sheets_to_format.append("Competidores")
+
+        for sheet in sheets_to_format:
             ws = writer.sheets[sheet]
             for col in ws.columns:
                 max_len = 0
@@ -604,7 +708,7 @@ Esta herramienta permite **identificar y priorizar** riesgos potenciales derivad
             with st.form("form_sicom_dialog"):
                 sicom_input = st.text_input(
                     "Código SICOM",
-                    placeholder="Ejemplo: 610004"
+                    placeholder="6 dígitos"
                 )
                 submit_sicom = st.form_submit_button("OK / Continuar")
 
@@ -655,7 +759,7 @@ Esta herramienta permite **identificar y priorizar** riesgos potenciales derivad
 elif st.session_state.step == 2:
     step_badge()
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.header("Ingreso de información del contrato")
+#    st.header("Ingreso de información del contrato")
 
     # -----------------------------
     # Información del mercado relevante
