@@ -762,73 +762,49 @@ elif st.session_state.step == 2:
 #    st.header("Ingreso de información del contrato")
 
     # -----------------------------
-    # Información del mercado relevante
+    # Información de la EDS y mercado relevante
     # -----------------------------
     if st.session_state.eds_info is not None:
         eds = st.session_state.eds_info
         competitors_df = st.session_state.competitors_df
 
-        st.subheader("Información de la EDS consultada")
+        st.subheader("EDS consultada y mercado relevante")
 
-#        m1, m2, m3, m4, m5 = st.columns(5)
-#
-#        with m1:
-#            st.metric("SICOM", eds.get("SICOM", "N/D"))
-#        with m2:
-#            st.metric("Bandera", eds.get("BANDERA", "N/D"))
-#        with m3:
-#            st.metric("Departamento", eds.get("DEPARTAMENTO", "N/D"))
-#        with m4:
-#            st.metric("Municipio", eds.get("MUNICIPIO", "N/D"))
-#        with m5:
-#            st.metric("Competidores", len(competitors_df))
+        nombre_eds = eds.get("NOMBRE COMERCIAL", "N/D")
+        sicom_eds = eds.get("SICOM", "N/D")
+        bandera_eds = eds.get("BANDERA", "N/D")
+        departamento_eds = eds.get("DEPARTAMENTO", "N/D")
+        municipio_eds = eds.get("MUNICIPIO", "N/D")
+        n_competidores = len(competitors_df)
 
         st.markdown(f"""
         <div style="
-            display:grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap:12px;
-            margin-top:8px;
-            margin-bottom:10px;
+            background:#FFFFFF;
+            border:1px solid rgba(15,23,42,0.08);
+            border-radius:14px;
+            padding:14px 18px;
+            margin-bottom:12px;
+            box-shadow:0 4px 12px rgba(15,23,42,0.06);
         ">
-            <div style="background:white; border-radius:12px; padding:10px 12px; border:1px solid rgba(15,23,42,0.08);">
-                <div style="font-size:11px; color:#475569; font-weight:700;">SICOM</div>
-                <div style="font-size:18px; color:#1A3D75; font-weight:800;">{eds.get("SICOM", "N/D")}</div>
-            </div>
-
-            <div style="background:white; border-radius:12px; padding:10px 12px; border:1px solid rgba(15,23,42,0.08);">
-                <div style="font-size:11px; color:#475569; font-weight:700;">Bandera</div>
-                <div style="font-size:18px; color:#1A3D75; font-weight:800;">{eds.get("BANDERA", "N/D")}</div>
-            </div>
-
-            <div style="background:white; border-radius:12px; padding:10px 12px; border:1px solid rgba(15,23,42,0.08);">
-                <div style="font-size:11px; color:#475569; font-weight:700;">Departamento</div>
-                <div style="font-size:18px; color:#1A3D75; font-weight:800;">{eds.get("DEPARTAMENTO", "N/D")}</div>
-            </div>
-
-            <div style="background:white; border-radius:12px; padding:10px 12px; border:1px solid rgba(15,23,42,0.08);">
-                <div style="font-size:11px; color:#475569; font-weight:700;">Municipio</div>
-                <div style="font-size:18px; color:#1A3D75; font-weight:800;">{eds.get("MUNICIPIO", "N/D")}</div>
-            </div>
-
-            <div style="background:white; border-radius:12px; padding:10px 12px; border:1px solid rgba(15,23,42,0.08);">
-                <div style="font-size:11px; color:#475569; font-weight:700;">Competidores</div>
-                <div style="font-size:18px; color:#1A3D75; font-weight:800;">{len(competitors_df)}</div>
-            </div>
+            <p style="margin:0; color:#0F172A; font-size:15px;">
+                <b>Nombre comercial:</b> {nombre_eds} &nbsp; | &nbsp;
+                <b>SICOM:</b> {sicom_eds} &nbsp; | &nbsp;
+                <b>Bandera:</b> {bandera_eds}
+            </p>
+            <p style="margin:6px 0 0 0; color:#0F172A; font-size:15px;">
+                <b>Departamento:</b> {departamento_eds} &nbsp; | &nbsp;
+                <b>Municipio:</b> {municipio_eds} &nbsp; | &nbsp;
+                <b>Competidores identificados:</b> {n_competidores}
+            </p>
         </div>
         """, unsafe_allow_html=True)
-        
-        st.markdown(
-            f"**Nombre comercial de la EDS:** {eds.get('NOMBRE COMERCIAL', 'No disponible')}"
-        )
 
-        st.markdown("**Competidores identificados en el mercado relevante:**")
-
-        st.dataframe(
-            competitors_df,
-            width="stretch",
-            hide_index=True
-        )
+        with st.expander("Ver competidores del mercado relevante"):
+            st.dataframe(
+                competitors_df,
+                width="stretch",
+                hide_index=True
+            )
 
         st.markdown('<hr class="soft-hr"/>', unsafe_allow_html=True)
 
