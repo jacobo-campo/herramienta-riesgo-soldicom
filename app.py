@@ -198,10 +198,24 @@ div[role="dialog"] h4 {{
 # -----------------------------
 # HEADER (logo arriba - Principal)
 # -----------------------------
-LOGO_PATH = "assets/logo-soldicom1.png"
-BASE_EDS_PATH = "assets/BASE_EDS.xlsx"
-LOGO_FENDI_PATH = "assets/logo-fendipetroleo.png"
-LOGO_COMCE_PATH = "assets/log-comce1.png"
+# -----------------------------
+# RUTAS DE ARCHIVOS
+# -----------------------------
+BASE_DIR = Path(__file__).parent
+
+def resolve_path(local_path: str, app_path: str) -> str:
+    """
+    Permite usar la app tanto en Colab como en Streamlit Cloud.
+    Primero intenta usar /mnt/data; si no existe, usa assets/.
+    """
+    if Path(local_path).exists():
+        return local_path
+    return str(BASE_DIR / app_path)
+
+LOGO_PATH = resolve_path("/mnt/data/logo-soldicom1.png", "assets/logo-soldicom1.png")
+BASE_EDS_PATH = resolve_path("/mnt/data/BASE_EDS.xlsx", "assets/BASE_EDS.xlsx")
+LOGO_FENDI_PATH = resolve_path("/mnt/data/logo-fendipetroleo.png", "assets/logo-fendipetroleo.png")
+LOGO_COMCE_PATH = resolve_path("/mnt/data/log-comce1.png", "assets/log-comce1.png")
 
 col_logo, col_title = st.columns([1, 4])
 with col_logo:
@@ -223,12 +237,104 @@ if "step" not in st.session_state:
 if "result" not in st.session_state:
     st.session_state.result = None
 
+if "sicom_code" not in st.session_state:
+    st.session_state.sicom_code = None
+
+if "eds_info" not in st.session_state:
+    st.session_state.eds_info = None
+
+if "competitors_df" not in st.session_state:
+    st.session_state.competitors_df = pd.DataFrame()
+
 def go(step: int):
     st.session_state.step = step
 
 def step_badge():
     st.markdown(f"<span class='badge'>Paso {st.session_state.step} de 3</span>", unsafe_allow_html=True)
     st.write("")
+
+# -----------------------------
+# Consulta de mercado relevante por código SICOM
+# -----------------------------
+def normalize_code(value) -> str:
+    """
+    Normaliza códigos SICOM/COMPETIDOR.
+    Ejemplo: 610004.0 -> 610004
+    """
+    if pd.isna(value):
+        return ""
+    value = str(value).strip()
+    if value.endswith(".0"):
+        value = value[:-2]
+    return value
+
+
+@st.cache_data(show_spinner=False)
+def load_base_eds(path: str) -> pd.DataFrame:
+    """
+    Carga la base de mercado relevante de EDS.
+    """
+    df = pd.read_excel(path, dtype=str)
+
+    required_cols = [
+        "SICOM",
+        "COMPETIDOR",
+        "NOMBRE COMERCIAL",
+        "BANDERA",
+        "DEPARTAMENTO",
+        "MUNICIPIO",
+        "Nom_Com",
+        "BANDERA_COM",
+    ]
+
+    missing_cols = [c for c in required_cols if c not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Faltan columnas en BASE_EDS.xlsx: {missing_cols}")
+
+    df = df[required_cols].copy()
+
+    df["SICOM_NORM"] = df["SICOM"].apply(normalize_code)
+    df["COMPETIDOR"] = df["COMPETIDOR"].apply(normalize_code)
+
+    return df
+
+
+def get_market_relevant_info(sicom_code: str):
+    """
+    Busca la EDS por SICOM y retorna:
+    - información de la EDS
+    - competidores del mercado relevante
+    """
+    df = load_base_eds(BASE_EDS_PATH)
+
+    sicom_norm = normalize_code(sicom_code)
+    subset = df[df["SICOM_NORM"] == sicom_norm].copy()
+
+    if subset.empty:
+        return None, pd.DataFrame()
+
+    first = subset.iloc[0]
+
+    eds_info = {
+        "SICOM": sicom_norm,
+        "NOMBRE COMERCIAL": first.get("NOMBRE COMERCIAL", "No disponible"),
+        "BANDERA": first.get("BANDERA", "No disponible"),
+        "DEPARTAMENTO": first.get("DEPARTAMENTO", "No disponible"),
+        "MUNICIPIO": first.get("MUNICIPIO", "No disponible"),
+    }
+
+    competitors = subset[["COMPETIDOR", "Nom_Com", "BANDERA_COM"]].copy()
+    competitors = competitors.rename(columns={
+        "Nom_Com": "NOMBRE COMERCIAL"
+    })
+
+    competitors = competitors.drop_duplicates()
+    competitors = competitors.sort_values(
+        by=["BANDERA_COM", "NOMBRE COMERCIAL"],
+        na_position="last"
+    )
+
+    return eds_info, competitors
 
 # -----------------------------
 # Model helpers
@@ -458,8 +564,62 @@ Esta herramienta permite **identificar y priorizar** riesgos potenciales derivad
     st.info("Haz clic en **Continuar** para diligenciar la información del contrato.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    if st.button("Continuar ➜"):
-        go(2)
+    if hasattr(st, "dialog"):
+
+        @st.dialog("Identificación de la EDS")
+        def sicom_dialog():
+            st.write(
+                "Ingrese el **código SICOM** de la estación de servicio para consultar "
+                "su mercado relevante y continuar con la evaluación del contrato."
+            )
+
+            with st.form("form_sicom_dialog"):
+                sicom_input = st.text_input(
+                    "Código SICOM",
+                    placeholder="Ejemplo: 610004"
+                )
+                submit_sicom = st.form_submit_button("OK / Continuar")
+
+            if submit_sicom:
+                eds_info, competitors_df = get_market_relevant_info(sicom_input)
+
+                if eds_info is None:
+                    st.error(
+                        "No se encontró información para el código SICOM ingresado. "
+                        "Verifique el código e intente nuevamente."
+                    )
+                else:
+                    st.session_state.sicom_code = normalize_code(sicom_input)
+                    st.session_state.eds_info = eds_info
+                    st.session_state.competitors_df = competitors_df
+                    go(2)
+                    st.rerun()
+
+        if st.button("Continuar ➜"):
+            sicom_dialog()
+
+    else:
+        with st.form("form_sicom_inline"):
+            sicom_input = st.text_input(
+                "Código SICOM",
+                placeholder="Ejemplo: 610004"
+            )
+            submit_sicom = st.form_submit_button("OK / Continuar")
+
+        if submit_sicom:
+            eds_info, competitors_df = get_market_relevant_info(sicom_input)
+
+            if eds_info is None:
+                st.error(
+                    "No se encontró información para el código SICOM ingresado. "
+                    "Verifique el código e intente nuevamente."
+                )
+            else:
+                st.session_state.sicom_code = normalize_code(sicom_input)
+                st.session_state.eds_info = eds_info
+                st.session_state.competitors_df = competitors_df
+                go(2)
+                st.rerun()
 
 # -----------------------------
 # STEP 2: Forma y Estructura
@@ -469,6 +629,49 @@ elif st.session_state.step == 2:
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.header("Ingreso de información del contrato")
 
+    # -----------------------------
+    # Información del mercado relevante
+    # -----------------------------
+    if st.session_state.eds_info is not None:
+        eds = st.session_state.eds_info
+        competitors_df = st.session_state.competitors_df
+
+        st.subheader("Información de la EDS consultada")
+
+        m1, m2, m3, m4, m5 = st.columns(5)
+
+        with m1:
+            st.metric("SICOM", eds.get("SICOM", "N/D"))
+        with m2:
+            st.metric("Bandera", eds.get("BANDERA", "N/D"))
+        with m3:
+            st.metric("Departamento", eds.get("DEPARTAMENTO", "N/D"))
+        with m4:
+            st.metric("Municipio", eds.get("MUNICIPIO", "N/D"))
+        with m5:
+            st.metric("Competidores", len(competitors_df))
+
+        st.markdown(
+            f"**Nombre comercial de la EDS:** {eds.get('NOMBRE COMERCIAL', 'No disponible')}"
+        )
+
+        st.markdown("**Competidores identificados en el mercado relevante:**")
+
+        st.dataframe(
+            competitors_df,
+            width="stretch",
+            hide_index=True
+        )
+
+        st.markdown('<hr class="soft-hr"/>', unsafe_allow_html=True)
+
+    else:
+        st.warning("No se ha ingresado un código SICOM. Vuelve al paso anterior para identificar la EDS.")
+        if st.button("⟵ Volver a bienvenida"):
+            go(1)
+            st.rerun()
+        st.stop()
+    
     c1, c2, c3 = st.columns(3)
     with c1:
         st.subheader("Estructura")
