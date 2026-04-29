@@ -343,7 +343,7 @@ BASE_EDS_PATH = resolve_path("/mnt/data/BASE_EDS.xlsx", "assets/BASE_EDS.xlsx")
 LOGO_FENDI_PATH = resolve_path("/mnt/data/logo-fendipetroleo.png", "assets/logo-fendipetroleo.png")
 LOGO_COMCE_PATH = resolve_path("/mnt/data/log-comce1.png", "assets/log-comce1.png")
 
-col_logo, col_title = st.columns([1, 4])
+col_logo, col_title = st.columns([1, 4], vertical_alignment="center")
 with col_logo:
     try:
         st.image(Image.open(LOGO_PATH), width=300)
