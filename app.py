@@ -240,6 +240,46 @@ header {{
     visibility: hidden !important;
 }}
 
+/* =========================
+   FIX: Expander de competidores
+   ========================= */
+
+/* Contenedor general del expander */
+[data-testid="stExpander"] {{
+    background-color: #FFFFFF !important;
+    border: 1px solid rgba(15, 23, 42, 0.10) !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+}}
+
+/* Barra/cabecera del expander */
+[data-testid="stExpander"] details summary {{
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    font-weight: 600 !important;
+    border-radius: 12px !important;
+}}
+
+/* Texto dentro de la barra */
+[data-testid="stExpander"] details summary p,
+[data-testid="stExpander"] details summary span,
+[data-testid="stExpander"] details summary div {{
+    color: #0F172A !important;
+    opacity: 1 !important;
+}}
+
+/* Hover del expander */
+[data-testid="stExpander"] details summary:hover {{
+    background-color: #F8FAFC !important;
+    color: #0F172A !important;
+}}
+
+/* Cuerpo del expander */
+[data-testid="stExpander"] details div {{
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+}}
+
 </style>
 """, unsafe_allow_html=True)
 
