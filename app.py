@@ -274,10 +274,48 @@ header {{
     color: #0F172A !important;
 }}
 
-/* Cuerpo del expander */
-[data-testid="stExpander"] details div {{
-    background-color: #FFFFFF !important;
+/* =========================
+   Tabla HTML de competidores
+   ========================= */
+
+.competitors-table-wrap {{
+    background: #FFFFFF !important;
+    border-radius: 12px;
+    padding: 10px;
+    margin-top: 8px;
+    border: 1px solid rgba(15,23,42,0.10);
+    overflow-x: auto;
+}}
+
+.competitors-table {{
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
     color: #0F172A !important;
+    background: #FFFFFF !important;
+}}
+
+.competitors-table th {{
+    background: #EFF8FE !important;
+    color: #1A3D75 !important;
+    font-weight: 800;
+    text-align: left;
+    padding: 10px;
+    border-bottom: 1px solid #CBD5E1;
+}}
+
+.competitors-table td {{
+    color: #0F172A !important;
+    padding: 9px 10px;
+    border-bottom: 1px solid #E2E8F0;
+}}
+
+.competitors-table tr:nth-child(even) {{
+    background: #F8FAFC !important;
+}}
+
+.competitors-table tr:hover {{
+    background: #EAF4FF !important;
 }}
 
 </style>
@@ -423,6 +461,36 @@ def get_market_relevant_info(sicom_code: str):
     )
 
     return eds_info, competitors
+
+def render_competitors_table(competitors_df: pd.DataFrame):
+    """
+    Renderiza la tabla de competidores con HTML controlado,
+    evitando problemas visuales de st.dataframe en modo dark/light.
+    """
+
+    if competitors_df is None or competitors_df.empty:
+        st.info("No se identificaron competidores para esta EDS.")
+        return
+
+    cols = ["COMPETIDOR", "NOMBRE COMERCIAL", "BANDERA_COM"]
+    cols_available = [c for c in cols if c in competitors_df.columns]
+
+    table_df = competitors_df[cols_available].copy()
+
+    html_table = table_df.to_html(
+        index=False,
+        escape=True,
+        classes="competitors-table"
+    )
+
+    st.markdown(
+        f"""
+        <div class="competitors-table-wrap">
+            {html_table}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # -----------------------------
 # Model helpers
@@ -1026,12 +1094,8 @@ elif st.session_state.step == 2:
         """, unsafe_allow_html=True)
 
         with st.expander("Ver competidores del mercado relevante"):
-            st.dataframe(
-                competitors_df,
-                width="stretch",
-                hide_index=True
-            )
-
+            render_competitors_table(competitors_df)
+        
         st.markdown('<hr class="soft-hr"/>', unsafe_allow_html=True)
 
     else:
@@ -1128,12 +1192,8 @@ else:
             )
 
             with st.expander("Ver competidores del mercado relevante"):
-                st.dataframe(
-                    competitors_df,
-                    width="stretch",
-                    hide_index=True
-                )
-
+                render_competitors_table(competitors_df)
+            
             st.markdown('<hr class="soft-hr"/>', unsafe_allow_html=True)
         
         left, mid, right = st.columns([1.05, 1.2, 1.1])
