@@ -70,15 +70,15 @@ div.stButton > button:hover {{
     margin: 18px 0;
 }}
 
-/* Badge */
 .badge {{
     display:inline-block;
-    padding: 6px 10px;
+    padding: 6px 12px;
     border-radius: 999px;
     font-weight: 700;
     font-size: 13px;
-    color: white;
-    background: {PRIMARY};
+    color: #166534 !important;         /* verde oscuro para el texto */
+    background: #DCFCE7 !important;    /* verde claro de fondo */
+    border: 1px solid #86EFAC;         /* borde verde suave */
 }}
 
 /* =========================
