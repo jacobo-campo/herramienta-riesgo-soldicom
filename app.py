@@ -8,6 +8,7 @@ from pathlib import Path
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
+from reportlab.lib.colors import HexColor
 
 # -----------------------------
 # CONFIG
@@ -218,6 +219,25 @@ div[role="dialog"] h4 {{
     color: #1A3D75 !important;   /* azul SOLDICOM */
     font-weight: 800 !important;
     opacity: 1 !important;
+}}
+
+/* =========================
+   OCULTAR MENÚ SUPERIOR STREAMLIT
+   ========================= */
+
+/* Oculta menú de tres puntos */
+#MainMenu {{
+    visibility: hidden !important;
+}}
+
+/* Oculta footer nativo */
+footer {{
+    visibility: hidden !important;
+}}
+
+/* Oculta header superior */
+header {{
+    visibility: hidden !important;
 }}
 
 </style>
@@ -466,141 +486,307 @@ def build_pdf_report(
     res: dict,
     logo_path: str = None,
     eds_info: dict = None,
-    competitors_df: pd.DataFrame = None
+    competitors_df: pd.DataFrame = None,
+    logo_fendi_path: str = None,
+    logo_comce_path: str = None
 ) -> io.BytesIO:
-    
     """
-    Genera un PDF con branding + resumen + drivers.
-    Devuelve un BytesIO listo para st.download_button.
+    Genera un PDF ordenado con:
+    1. Fecha de diligenciamiento
+    2. Información de la EDS
+    3. Mercado relevante y competidores
+    4. Información diligenciada para el cálculo
+    5. Resultado del cálculo
+    6. Drivers principales
+    7. Logos institucionales
     """
+
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
-    w, h = letter
 
-    # Header
-    y = h - 50
+    page_w, page_h = letter
+    margin_x = 40
+    top_y = page_h - 40
+    bottom_limit = 80
 
-    # Logo
-    if logo_path:
+    PRIMARY = HexColor("#1A3D75")
+    TEXT = HexColor("#0F172A")
+    MUTED = HexColor("#475569")
+    LIGHT_LINE = HexColor("#CBD5E1")
+
+    fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    # -----------------------------
+    # Funciones auxiliares
+    # -----------------------------
+    def draw_footer(page_number: int):
+        c.setStrokeColor(LIGHT_LINE)
+        c.line(margin_x, 55, page_w - margin_x, 55)
+
+        # Logos al pie
         try:
-            c.drawImage(ImageReader(logo_path), 40, h - 85, width=150, height=55, mask='auto')
+            if logo_fendi_path:
+                c.drawImage(
+                    ImageReader(logo_fendi_path),
+                    margin_x,
+                    18,
+                    width=95,
+                    height=28,
+                    mask="auto"
+                )
         except Exception:
             pass
 
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(210, h - 60, "Reporte de Riesgo – Contrato Mayorista/Minorista")
+        try:
+            if logo_comce_path:
+                c.drawImage(
+                    ImageReader(logo_comce_path),
+                    margin_x + 120,
+                    18,
+                    width=75,
+                    height=28,
+                    mask="auto"
+                )
+        except Exception:
+            pass
 
-    c.setFont("Helvetica", 9)
-    c.drawString(40, h - 105, f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    c.drawString(40, h - 120, f"Puntaje: {res['score']:.1f}/100")
-    c.drawString(200, h - 120, f"Probabilidad estimada: {100*res['p']:.1f}%")
-    c.drawString(420, h - 120, f"Semáforo: {res['label']}")
+        c.setFont("Helvetica", 7)
+        c.setFillColor(MUTED)
+        c.drawRightString(
+            page_w - margin_x,
+            25,
+            f"Página {page_number} | Herramienta de Identificación de Riesgos de Pérdida de Competencia"
+        )
 
-    # Información de la EDS consultada
-    y = h - 150
+    def draw_header():
+        y = top_y
+
+        # Logo principal
+        try:
+            if logo_path:
+                c.drawImage(
+                    ImageReader(logo_path),
+                    margin_x,
+                    y - 42,
+                    width=130,
+                    height=42,
+                    mask="auto"
+                )
+        except Exception:
+            pass
+
+        c.setFillColor(TEXT)
+        c.setFont("Helvetica-Bold", 13)
+        c.drawString(190, y - 10, "Reporte de Riesgo – Contrato Mayorista/Minorista")
+
+        c.setFont("Helvetica", 9)
+        c.setFillColor(MUTED)
+        c.drawString(190, y - 27, f"Fecha de diligenciamiento: {fecha}")
+
+        c.setStrokeColor(LIGHT_LINE)
+        c.line(margin_x, y - 55, page_w - margin_x, y - 55)
+
+        return y - 80
+
+    def check_space(y, needed=40):
+        nonlocal page_number
+        if y - needed < bottom_limit:
+            draw_footer(page_number)
+            c.showPage()
+            page_number += 1
+            return draw_header()
+        return y
+
+    def section_title(y, title):
+        y = check_space(y, 35)
+        c.setFillColor(PRIMARY)
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(margin_x, y, title)
+        y -= 14
+        c.setStrokeColor(LIGHT_LINE)
+        c.line(margin_x, y, page_w - margin_x, y)
+        return y - 14
+
+    def draw_key_value(y, key, value, x=50, key_width=120):
+        y = check_space(y, 18)
+        c.setFillColor(TEXT)
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(x, y, f"{key}:")
+        c.setFont("Helvetica", 9)
+        c.drawString(x + key_width, y, str(value))
+        return y - 13
+
+    def truncate_text(text, max_chars):
+        text = "" if pd.isna(text) else str(text)
+        if len(text) <= max_chars:
+            return text
+        return text[:max_chars - 3] + "..."
+
+    # -----------------------------
+    # Inicio del documento
+    # -----------------------------
+    page_number = 1
+    y = draw_header()
+
+    # -----------------------------
+    # 1. Información de la EDS
+    # -----------------------------
+    y = section_title(y, "1. Información de la EDS consultada")
 
     if eds_info is not None:
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(40, y, "Información de la EDS consultada")
-        y -= 16
+        y = draw_key_value(y, "SICOM", eds_info.get("SICOM", "N/D"))
+        y = draw_key_value(y, "Nombre comercial", eds_info.get("NOMBRE COMERCIAL", "N/D"))
+        y = draw_key_value(y, "Bandera", eds_info.get("BANDERA", "N/D"))
+        y = draw_key_value(y, "Departamento", eds_info.get("DEPARTAMENTO", "N/D"))
+        y = draw_key_value(y, "Municipio", eds_info.get("MUNICIPIO", "N/D"))
+    else:
+        y = draw_key_value(y, "Información", "No disponible")
 
-        c.setFont("Helvetica", 9)
-        c.drawString(50, y, f"SICOM: {eds_info.get('SICOM', 'N/D')}")
-        y -= 12
-        c.drawString(50, y, f"Nombre comercial: {eds_info.get('NOMBRE COMERCIAL', 'N/D')}")
-        y -= 12
-        c.drawString(50, y, f"Bandera: {eds_info.get('BANDERA', 'N/D')}")
-        y -= 12
-        c.drawString(50, y, f"Departamento: {eds_info.get('DEPARTAMENTO', 'N/D')}")
-        y -= 12
-        c.drawString(50, y, f"Municipio: {eds_info.get('MUNICIPIO', 'N/D')}")
-        y -= 16
+    y -= 8
+
+    # -----------------------------
+    # 2. Mercado relevante
+    # -----------------------------
+    y = section_title(y, "2. Mercado relevante y competidores")
+
+    n_comp = 0 if competitors_df is None else len(competitors_df)
+    y = draw_key_value(y, "Competidores identificados", n_comp)
 
     if competitors_df is not None and not competitors_df.empty:
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(40, y, "Competidores en el mercado relevante")
-        y -= 14
+        y -= 4
+        y = check_space(y, 35)
 
-        c.setFont("Helvetica", 9)
-        c.drawString(50, y, f"Número de competidores identificados: {len(competitors_df)}")
-        y -= 16
-
+        # Encabezado tabla
+        c.setFillColor(PRIMARY)
         c.setFont("Helvetica-Bold", 8)
         c.drawString(50, y, "COMPETIDOR")
-        c.drawString(130, y, "NOMBRE COMERCIAL")
-        c.drawString(390, y, "BANDERA")
+        c.drawString(135, y, "NOMBRE COMERCIAL")
+        c.drawString(420, y, "BANDERA")
+        y -= 8
+
+        c.setStrokeColor(LIGHT_LINE)
+        c.line(50, y, page_w - 50, y)
         y -= 10
 
+        c.setFillColor(TEXT)
         c.setFont("Helvetica", 8)
 
-        # En PDF se muestran los primeros 15 para evitar páginas muy largas.
-        # El Excel contiene la tabla completa.
-        for _, row in competitors_df.head(15).iterrows():
-            comp = str(row.get("COMPETIDOR", ""))
-            nom = str(row.get("NOMBRE COMERCIAL", ""))
-            bandera = str(row.get("BANDERA_COM", ""))
+        for _, row in competitors_df.iterrows():
+            y = check_space(y, 18)
 
-            if len(nom) > 45:
-                nom = nom[:42] + "..."
+            comp = truncate_text(row.get("COMPETIDOR", ""), 14)
+            nom = truncate_text(row.get("NOMBRE COMERCIAL", ""), 55)
+            bandera = truncate_text(row.get("BANDERA_COM", ""), 18)
 
             c.drawString(50, y, comp)
-            c.drawString(130, y, nom)
-            c.drawString(390, y, bandera)
-            y -= 10
+            c.drawString(135, y, nom)
+            c.drawString(420, y, bandera)
 
-            if y < 80:
-                c.showPage()
-                y = h - 60
+            y -= 11
+    else:
+        y = draw_key_value(y, "Competidores", "No se identificaron competidores para el SICOM consultado")
 
-        if len(competitors_df) > 15:
-            y -= 4
-            c.setFont("Helvetica-Oblique", 8)
-            c.drawString(
-                50,
-                y,
-                "Nota: el PDF muestra los primeros 15 competidores. El archivo Excel incluye la tabla completa."
-            )
-            y -= 14
-    
-    # Inputs
-    y = h - 10
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(40, y, "Información diligenciada")
-    y -= 16
-
-    c.setFont("Helvetica", 9)
-    for k, v in res["inputs"].items():
-        c.drawString(50, y, f"- {k}: {v}")
-        y -= 12
-        if y < 80:
-            c.showPage()
-            y = h - 60
-
-    # Drivers top
     y -= 10
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(40, y, "Lectura rápida (principales drivers)")
+
+    # -----------------------------
+    # 3. Información diligenciada
+    # -----------------------------
+    y = section_title(y, "3. Información diligenciada para el cálculo")
+
+    inputs = res.get("inputs", {})
+
+    labels_inputs = {
+        "exclusividad": "Cláusula de exclusividad",
+        "duracion_meses": "Duración del contrato (meses)",
+        "penalidades": "Penalidades o costos de salida",
+        "clausulas_precio": "Restricciones sobre precios/promociones",
+        "control_operativo": "Control operativo del mayorista",
+        "datos_compartidos": "Intercambio de información sensible",
+    }
+
+    for k, label in labels_inputs.items():
+        y = draw_key_value(y, label, inputs.get(k, "N/D"), key_width=210)
+
+    y -= 10
+
+    # -----------------------------
+    # 4. Resultado del cálculo
+    # -----------------------------
+    y = section_title(y, "4. Resultado del cálculo")
+
+    y = check_space(y, 75)
+
+    c.setFillColor(TEXT)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(50, y, "Puntaje de riesgo:")
+    c.setFont("Helvetica", 10)
+    c.drawString(190, y, f"{res['score']:.1f} / 100")
+
     y -= 16
 
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(50, y, "Probabilidad estimada:")
+    c.setFont("Helvetica", 10)
+    c.drawString(190, y, f"{100 * res['p']:.1f}%")
+
+    y -= 16
+
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(50, y, "Semáforo:")
+    c.setFont("Helvetica-Bold", 10)
+    c.setFillColor(PRIMARY)
+    c.drawString(190, y, res["label"])
+
+    y -= 16
+
+    c.setFillColor(TEXT)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(50, y, "Clasificación:")
+    c.setFont("Helvetica", 10)
+    c.drawString(190, y, res["bucket"])
+
+    y -= 22
+
+    # -----------------------------
+    # 5. Drivers principales
+    # -----------------------------
+    y = section_title(y, "5. Lectura rápida: principales factores que explican el resultado")
+
+    top3 = res.get("top3", pd.DataFrame())
+
+    c.setFillColor(TEXT)
     c.setFont("Helvetica", 9)
-    top3 = res["top3"]
+
     if top3 is None or top3.empty:
-        c.drawString(50, y, "- No hay factores activados con contribución positiva (según parametrización actual).")
-        y -= 12
+        y = draw_key_value(
+            y,
+            "Drivers",
+            "No hay factores activados con contribución positiva",
+            key_width=80
+        )
     else:
         for _, r in top3.iterrows():
-            c.drawString(50, y, f"- {r['Factor']} | peso {int(r['Peso'])} | contribución {r['Contribución']:.1f}")
+            y = check_space(y, 18)
+            factor = str(r.get("Factor", ""))
+            peso = int(r.get("Peso", 0))
+            contrib = float(r.get("Contribución", 0))
+            c.drawString(55, y, f"- {factor}: peso {peso}, contribución {contrib:.1f}")
             y -= 12
-            if y < 80:
-                c.showPage()
-                y = h - 60
 
-    # Nota
     y -= 6
-    c.setFont("Helvetica-Oblique", 8)
-    c.drawString(40, y, "Nota: Esta herramienta prioriza contratos para revisión técnica. No constituye una determinación de infracción.")
+    y = check_space(y, 35)
 
-    c.showPage()
+    c.setFont("Helvetica-Oblique", 8)
+    c.setFillColor(MUTED)
+    c.drawString(
+        margin_x,
+        y,
+        "Nota: esta herramienta prioriza contratos para revisión técnica. No constituye una determinación de infracción."
+    )
+
+    # Footer última página
+    draw_footer(page_number)
+
     c.save()
     buffer.seek(0)
     return buffer
@@ -962,7 +1148,9 @@ else:
                 res,
                 logo_path=LOGO_PATH,
                 eds_info=eds_info_report,
-                competitors_df=competitors_report
+                competitors_df=competitors_report,
+                logo_fendi_path=LOGO_FENDI_PATH,
+                logo_comce_path=LOGO_COMCE_PATH
             )
 
             xlsx_buffer = build_excel_report(
