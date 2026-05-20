@@ -340,8 +340,9 @@ def resolve_path(local_path: str, app_path: str) -> str:
 
 LOGO_PATH = resolve_path("/mnt/data/logo-soldicom1.png", "assets/logo-soldicom1.png")
 BASE_EDS_PATH = resolve_path("/mnt/data/BASE_EDS.xlsx", "assets/BASE_EDS.xlsx")
-LOGO_FENDI_PATH = resolve_path("/mnt/data/logo-fendipetroleo.png", "assets/logo-fendipetroleo.png")
-LOGO_COMCE_PATH = resolve_path("/mnt/data/log-comce1.png", "assets/log-comce1.png")
+#LOGO_FENDI_PATH = resolve_path("/mnt/data/logo-fendipetroleo.png", "assets/logo-fendipetroleo.png")
+#LOGO_COMCE_PATH = resolve_path("/mnt/data/log-comce1.png", "assets/log-comce1.png")
+LOGO_SOMOSUNO_PATH = resolve_path("/mnt/data/logo-somosuno.png", "assets/logo-somosuno.png")
 
 col_logo, col_title = st.columns([1, 4], vertical_alignment="center")
 with col_logo:
@@ -595,8 +596,7 @@ def build_pdf_report(
     logo_path: str = None,
     eds_info: dict = None,
     competitors_df: pd.DataFrame = None,
-    logo_fendi_path: str = None,
-    logo_comce_path: str = None
+    logo_somosuno_path: str = None
 ) -> io.BytesIO:
     """
     Genera un PDF ordenado con:
@@ -633,26 +633,13 @@ def build_pdf_report(
 
         # Logos al pie
         try:
-            if logo_fendi_path:
+            if logo_somosuno_path:
                 c.drawImage(
-                    ImageReader(logo_fendi_path),
+                    ImageReader(logo_somosuno_path),
                     margin_x,
-                    18,
-                    width=95,
-                    height=28,
-                    mask="auto"
-                )
-        except Exception:
-            pass
-
-        try:
-            if logo_comce_path:
-                c.drawImage(
-                    ImageReader(logo_comce_path),
-                    margin_x + 120,
-                    18,
-                    width=75,
-                    height=28,
+                    15,
+                    width=190,
+                    height=42,
                     mask="auto"
                 )
         except Exception:
@@ -1249,8 +1236,7 @@ else:
                 logo_path=LOGO_PATH,
                 eds_info=eds_info_report,
                 competitors_df=competitors_report,
-                logo_fendi_path=LOGO_FENDI_PATH,
-                logo_comce_path=LOGO_COMCE_PATH
+                logo_somosuno_path=LOGO_SOMOSUNO_PATH
             )
 
             xlsx_buffer = build_excel_report(
@@ -1360,17 +1346,11 @@ else:
 
 st.markdown('<hr class="soft-hr"/>', unsafe_allow_html=True)
 
-col1, col2, col3 = st.columns([1, 2, 2])
+col1, col2, col3 = st.columns([1, 3, 1])
 
 with col2:
     try:
-        st.image(Image.open(LOGO_FENDI_PATH), width=220)
-    except Exception:
-        pass
-
-with col3:
-    try:
-        st.image(Image.open(LOGO_COMCE_PATH), width=200)
+        st.image(Image.open(LOGO_SOMOSUNO_PATH), width=520)
     except Exception:
         pass
 
