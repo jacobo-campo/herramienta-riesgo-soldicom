@@ -557,10 +557,11 @@ def compute_score(params: dict, inputs: dict) -> dict:
     x = {
         "exclusividad": yesno(inputs["exclusividad"]),
         "duracion": dur_scale(inputs["duracion_meses"]),
-        "clausulas_precio": yesno(inputs["clausulas_precio"]),
         "penalidades": yesno(inputs["penalidades"]),
-        "datos_compartidos": yesno(inputs["datos_compartidos"]),
+        "clausulas_precio": yesno(inputs["clausulas_precio"]),
         "control_operativo": yesno(inputs["control_operativo"]),
+        "sancion_mayorista": yesno(inputs["sancion_mayorista"]),
+        "datos_compartidos": yesno(inputs["datos_compartidos"]),
     }
 
     max_score = sum(weights.values()) if sum(weights.values()) > 0 else 1
@@ -609,14 +610,25 @@ def compute_score(params: dict, inputs: dict) -> dict:
 # -----------------------------
 with st.sidebar:
     st.header("Parámetros del modelo")
+
     w = {
         "exclusividad": st.slider("Peso: Exclusividad", 0, 30, 15),
-        "duracion": st.slider("Peso: Duración (meses)", 0, 20, 10),
-        "clausulas_precio": st.slider("Peso: Restricciones de precio", 0, 25, 12),
-        "penalidades": st.slider("Peso: Penalidades / costos salida", 0, 25, 12),
-        "datos_compartidos": st.slider("Peso: Intercambio info sensible", 0, 20, 8),
-        "control_operativo": st.slider("Peso: Control operativo", 0, 25, 10),
+        "duracion": st.slider("Peso: Duración en meses o equivalente", 0, 30, 10),
+        "penalidades": st.slider("Peso: Penalidades / costos salida", 0, 30, 15),
+        "clausulas_precio": st.slider("Peso: Restricciones de precio/promociones", 0, 30, 15),
+        "control_operativo": st.slider("Peso: Control operativo", 0, 30, 15),
+        "sancion_mayorista": st.slider("Peso: Sanción por parte del mayorista", 0, 30, 10),
+        "datos_compartidos": st.slider("Peso: Intercambio info sensible", 0, 30, 20),
     }
+
+    total_pesos = sum(w.values())
+    st.caption(f"Suma actual de pesos: {total_pesos}")
+
+    if total_pesos != 100:
+        st.warning(
+            "La suma de pesos no es 100. La herramienta normaliza automáticamente, "
+            "pero para la versión metodológica se recomienda mantener la suma en 100."
+        )
     threshold_green = st.slider("Umbral VERDE (≤)", 0, 100, 33)
     threshold_yellow = st.slider("Umbral AMARILLO (≤)", 0, 100, 66)
     st.subheader("Calibración probabilidad")
@@ -830,12 +842,15 @@ def build_pdf_report(
 
     inputs = res.get("inputs", {})
 
+    }
     labels_inputs = {
         "exclusividad": "Cláusula de exclusividad",
-        "duracion_meses": "Duración del contrato (meses)",
+        "tipo_duracion": "Tipo de duración",
+        "duracion_meses": "Duración en meses o equivalente",
         "penalidades": "Penalidades o costos de salida",
         "clausulas_precio": "Restricciones sobre precios/promociones",
         "control_operativo": "Control operativo del mayorista",
+        "sancion_mayorista": "Sanción por parte del mayorista",
         "datos_compartidos": "Intercambio de información sensible",
     }
 
@@ -1139,11 +1154,27 @@ elif st.session_state.step == 2:
         exclusividad = st.selectbox("¿Hay cláusula de exclusividad?", ["No", "Sí"])
         duracion_meses = st.number_input("Duración del contrato (meses)", min_value=0, max_value=240, value=36, step=1)
         penalidades = st.selectbox("¿Existen penalidades/costos de salida relevantes?", ["No", "Sí"])
-
+    
     with c2:
         st.subheader("Conducta / incentivos")
-        clausulas_precio = st.selectbox("¿Hay restricciones sobre precios/promociones o alineación obligatoria?", ["No", "Sí"])
-        control_operativo = st.selectbox("¿El mayorista impone control operativo (inventario, proveedores, branding rígido, etc.)?", ["No", "Sí"])
+        clausulas_precio = st.selectbox(
+            "¿Hay restricciones sobre precios/promociones o alineación obligatoria?",
+            ["No", "Sí"]
+        )
+
+        control_operativo = st.selectbox(
+            "¿El mayorista impone control operativo (inventario, proveedores, branding rígido, etc.)?",
+            ["No", "Sí"]
+        )
+
+        sancion_mayorista = st.selectbox(
+            "¿Ha sido usted sancionado por el mayorista?",
+            ["No", "Sí"],
+            help=(
+                "Marque 'Sí' si el mayorista le ha impuesto sanciones, multas, penalidades operativas "
+                "o medidas disciplinarias asociadas al cumplimiento del contrato."
+            )
+        )
 
     with c3:
         st.subheader("Información")
@@ -1159,10 +1190,12 @@ elif st.session_state.step == 2:
         if st.button("Calcular"):
             inputs = {
                 "exclusividad": exclusividad,
+                "tipo_duracion": tipo_duracion,
                 "duracion_meses": int(duracion_meses),
                 "penalidades": penalidades,
                 "clausulas_precio": clausulas_precio,
                 "control_operativo": control_operativo,
+                "sancion_mayorista": sancion_mayorista,
                 "datos_compartidos": datos_compartidos,
             }
             st.session_state.result = compute_score(params=params, inputs=inputs)
