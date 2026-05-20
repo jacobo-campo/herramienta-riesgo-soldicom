@@ -1318,13 +1318,16 @@ else:
             )
 
         with mid:
-            st.subheader("Detalle")
-            st.write(f"**Puntaje:** {res['score']:.1f}")
-            st.write(f"**Probabilidad:** {100*res['p']:.1f}%")
+            st.subheader("Resultado de la evaluación")
+
+            st.write(f"**Puntaje de riesgo:** {res['score']:.1f} / 100")
+            st.write(f"**Probabilidad estimada de riesgo:** {100*res['p']:.1f}%")
             st.write(f"**Clasificación:** {res['bucket']}")
-            st.markdown('<hr class="soft-hr"/>', unsafe_allow_html=True)
-            st.subheader("Drivers (contribución)")
-            st.dataframe(res["drivers_df"], width="stretch", hide_index=True)
+
+            st.info(
+                "El resultado tiene carácter preventivo y orientador. "
+                "No constituye una determinación de infracción ni sustituye un análisis jurídico-económico de fondo."
+            )
 
         with right:
             st.subheader("Acciones")
