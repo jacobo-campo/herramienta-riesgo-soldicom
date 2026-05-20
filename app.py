@@ -629,8 +629,10 @@ with st.sidebar:
             "La suma de pesos no es 100. La herramienta normaliza automáticamente, "
             "pero para la versión metodológica se recomienda mantener la suma en 100."
         )
+    
     threshold_green = st.slider("Umbral VERDE (≤)", 0, 100, 33)
     threshold_yellow = st.slider("Umbral AMARILLO (≤)", 0, 100, 66)
+    
     st.subheader("Calibración probabilidad")
     alpha = st.slider("Pendiente (alpha)", 0.01, 0.25, 0.08)
     center = st.slider("Centro (score p≈50%)", 20, 80, 55)
@@ -842,7 +844,6 @@ def build_pdf_report(
 
     inputs = res.get("inputs", {})
 
-    }
     labels_inputs = {
         "exclusividad": "Cláusula de exclusividad",
         "tipo_duracion": "Tipo de duración",
@@ -1149,12 +1150,43 @@ elif st.session_state.step == 2:
 
     st.header("Ingreso de información del contrato")
     c1, c2, c3 = st.columns(3)
+
     with c1:
         st.subheader("Estructura")
-        exclusividad = st.selectbox("¿Hay cláusula de exclusividad?", ["No", "Sí"])
-        duracion_meses = st.number_input("Duración del contrato (meses)", min_value=0, max_value=240, value=36, step=1)
-        penalidades = st.selectbox("¿Existen penalidades/costos de salida relevantes?", ["No", "Sí"])
-    
+
+        exclusividad = st.selectbox(
+            "¿Hay cláusula de exclusividad?",
+            ["No", "Sí"]
+        )
+
+        tipo_duracion = st.radio(
+            "¿La duración está definida en cantidad o tiempo?",
+            ["Tiempo", "Cantidad"],
+            horizontal=True,
+            help=(
+                "Seleccione 'Tiempo' si el contrato fija una duración temporal. "
+                "Seleccione 'Cantidad' si la duración depende de volumen, cupos, galones u otra unidad, "
+                "y registre abajo su equivalente aproximado en meses."
+            )
+        )
+
+        duracion_meses = st.number_input(
+            "Duración en meses o equivalente",
+            min_value=0,
+            max_value=240,
+            value=36,
+            step=1,
+            help=(
+                "Ingrese la duración en meses. Si la duración está definida por cantidad, "
+                "registre una equivalencia temporal estimada."
+            )
+        )
+
+        penalidades = st.selectbox(
+            "¿Existen penalidades/costos de salida relevantes?",
+            ["No", "Sí"]
+        )
+
     with c2:
         st.subheader("Conducta / incentivos")
         clausulas_precio = st.selectbox(
