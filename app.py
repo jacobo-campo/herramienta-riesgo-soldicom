@@ -898,61 +898,61 @@ def build_pdf_report(
 
     y -= 22
 
-# -----------------------------
-# 5. Lectura rápida del resultado
-# -----------------------------
-y = section_title(y, "5. Lectura rápida del resultado")
+    # -----------------------------
+    # 5. Lectura rápida del resultado
+    # -----------------------------
+    y = section_title(y, "5. Lectura rápida del resultado")
 
-y = check_space(y, 70)
+    y = check_space(y, 70)
 
-c.setFillColor(TEXT)
-c.setFont("Helvetica", 9)
+    c.setFillColor(TEXT)
+    c.setFont("Helvetica", 9)
 
-if res["bucket"] == "Bajo":
-    texto_lectura = (
-        "El contrato presenta una baja concentración de factores contractuales sensibles, "
-        "según la parametrización de la herramienta. Se recomienda conservar este reporte "
-        "como soporte y realizar seguimiento si se modifican las condiciones contractuales."
+    if res["bucket"] == "Bajo":
+        texto_lectura = (
+            "El contrato presenta una baja concentración de factores contractuales sensibles, "
+            "según la parametrización de la herramienta. Se recomienda conservar este reporte "
+            "como soporte y realizar seguimiento si se modifican las condiciones contractuales."
+        )
+    elif res["bucket"] == "Medio":
+        texto_lectura = (
+            "El contrato presenta elementos que justifican una revisión preventiva. "
+            "Se recomienda analizar con mayor detalle las condiciones contractuales antes de renovar, "
+            "modificar o suscribir nuevos compromisos."
+        )
+    else:
+        texto_lectura = (
+            "El contrato presenta una combinación de condiciones que amerita una revisión técnica detallada. "
+            "Se recomienda evaluar el alcance de las cláusulas, su justificación económica y sus posibles efectos "
+            "sobre la autonomía competitiva del minorista."
+        )
+
+    # Escritura simple en varias líneas
+    lineas = []
+    max_chars = 95
+    while len(texto_lectura) > max_chars:
+        corte = texto_lectura[:max_chars].rfind(" ")
+        if corte == -1:
+            corte = max_chars
+        lineas.append(texto_lectura[:corte])
+        texto_lectura = texto_lectura[corte:].strip()
+    lineas.append(texto_lectura)
+    
+    for linea in lineas:
+        y = check_space(y, 14)
+        c.drawString(50, y, linea)
+        y -= 12
+
+    y -= 8
+    y = check_space(y, 35)
+
+    c.setFont("Helvetica-Oblique", 8)
+    c.setFillColor(MUTED)
+    c.drawString(
+        margin_x,
+        y,
+        "Nota: esta herramienta prioriza contratos para revisión técnica. No constituye una determinación de infracción."
     )
-elif res["bucket"] == "Medio":
-    texto_lectura = (
-        "El contrato presenta elementos que justifican una revisión preventiva. "
-        "Se recomienda analizar con mayor detalle las condiciones contractuales antes de renovar, "
-        "modificar o suscribir nuevos compromisos."
-    )
-else:
-    texto_lectura = (
-        "El contrato presenta una combinación de condiciones que amerita una revisión técnica detallada. "
-        "Se recomienda evaluar el alcance de las cláusulas, su justificación económica y sus posibles efectos "
-        "sobre la autonomía competitiva del minorista."
-    )
-
-# Escritura simple en varias líneas
-lineas = []
-max_chars = 95
-while len(texto_lectura) > max_chars:
-    corte = texto_lectura[:max_chars].rfind(" ")
-    if corte == -1:
-        corte = max_chars
-    lineas.append(texto_lectura[:corte])
-    texto_lectura = texto_lectura[corte:].strip()
-lineas.append(texto_lectura)
-
-for linea in lineas:
-    y = check_space(y, 14)
-    c.drawString(50, y, linea)
-    y -= 12
-
-y -= 8
-y = check_space(y, 35)
-
-c.setFont("Helvetica-Oblique", 8)
-c.setFillColor(MUTED)
-c.drawString(
-    margin_x,
-    y,
-    "Nota: esta herramienta prioriza contratos para revisión técnica. No constituye una determinación de infracción."
-)
 
     # Footer última página
     draw_footer(page_number)
