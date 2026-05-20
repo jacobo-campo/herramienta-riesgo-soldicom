@@ -397,13 +397,17 @@ def normalize_code(value) -> str:
 
 
 @st.cache_data(show_spinner=False)
-def load_base_eds(path: str) -> pd.DataFrame:
+def load_base_eds(path: str):
     """
-    Carga la base de mercado relevante de EDS.
+    Carga la base de EDS desde dos hojas:
+    - Datos: contiene SICOM, competidores y características del mercado relevante.
+    - Nombre: contiene el nombre comercial correcto de cada EDS por SICOM.
     """
-    df = pd.read_excel(path, dtype=str)
 
-    required_cols = [
+    # Hoja principal para competidores y mercado relevante
+    datos = pd.read_excel(path, sheet_name="Datos", dtype=str)
+
+    required_cols_datos = [
         "SICOM",
         "COMPETIDOR",
         "NOMBRE COMERCIAL",
@@ -414,43 +418,79 @@ def load_base_eds(path: str) -> pd.DataFrame:
         "BANDERA_COM",
     ]
 
-    missing_cols = [c for c in required_cols if c not in df.columns]
-    if missing_cols:
-        raise ValueError(f"Faltan columnas en BASE_EDS.xlsx: {missing_cols}")
+    missing_cols_datos = [c for c in required_cols_datos if c not in datos.columns]
+    if missing_cols_datos:
+        raise ValueError(f"Faltan columnas en la hoja Datos de BASE_EDS.xlsx: {missing_cols_datos}")
 
-    df = df[required_cols].copy()
+    datos = datos[required_cols_datos].copy()
 
-    df["SICOM_NORM"] = df["SICOM"].apply(normalize_code)
-    df["COMPETIDOR"] = df["COMPETIDOR"].apply(normalize_code)
+    datos["SICOM_NORM"] = datos["SICOM"].apply(normalize_code)
+    datos["COMPETIDOR"] = datos["COMPETIDOR"].apply(normalize_code)
 
-    return df
+    # Hoja con nombre comercial correcto de la EDS
+    nombres = pd.read_excel(path, sheet_name="Nombre", dtype=str)
+
+    required_cols_nombre = [
+        "SICOM",
+        "NOMBRE COMERCIAL",
+    ]
+
+    missing_cols_nombre = [c for c in required_cols_nombre if c not in nombres.columns]
+    if missing_cols_nombre:
+        raise ValueError(f"Faltan columnas en la hoja Nombre de BASE_EDS.xlsx: {missing_cols_nombre}")
+
+    nombres = nombres[required_cols_nombre].copy()
+    nombres["SICOM_NORM"] = nombres["SICOM"].apply(normalize_code)
+
+    # Renombramos para no confundirlo con NOMBRE COMERCIAL de la hoja Datos
+    nombres = nombres.rename(columns={
+        "NOMBRE COMERCIAL": "NOMBRE_EDS"
+    })
+
+    return datos, nombres
 
 
 def get_market_relevant_info(sicom_code: str):
     """
     Busca la EDS por SICOM y retorna:
-    - información de la EDS
+    - información de la EDS consultada
     - competidores del mercado relevante
+
+    La información de competidores se toma de la hoja 'Datos'.
+    El nombre comercial correcto de la EDS se toma de la hoja 'Nombre'.
     """
-    df = load_base_eds(BASE_EDS_PATH)
+
+    datos, nombres = load_base_eds(BASE_EDS_PATH)
 
     sicom_norm = normalize_code(sicom_code)
-    subset = df[df["SICOM_NORM"] == sicom_norm].copy()
+
+    # Filtrar competidores desde hoja Datos
+    subset = datos[datos["SICOM_NORM"] == sicom_norm].copy()
 
     if subset.empty:
         return None, pd.DataFrame()
 
     first = subset.iloc[0]
 
+    # Buscar nombre correcto de la EDS en hoja Nombre
+    nombre_match = nombres[nombres["SICOM_NORM"] == sicom_norm].copy()
+
+    if not nombre_match.empty:
+        nombre_eds = nombre_match.iloc[0].get("NOMBRE_EDS", "No disponible")
+    else:
+        # Fallback si por alguna razón no aparece en Nombre
+        nombre_eds = first.get("NOMBRE COMERCIAL", "No disponible")
+
     eds_info = {
         "SICOM": sicom_norm,
-        "NOMBRE COMERCIAL": first.get("NOMBRE COMERCIAL", "No disponible"),
+        "NOMBRE COMERCIAL": nombre_eds,
         "BANDERA": first.get("BANDERA", "No disponible"),
         "DEPARTAMENTO": first.get("DEPARTAMENTO", "No disponible"),
         "MUNICIPIO": first.get("MUNICIPIO", "No disponible"),
     }
 
     competitors = subset[["COMPETIDOR", "Nom_Com", "BANDERA_COM"]].copy()
+
     competitors = competitors.rename(columns={
         "Nom_Com": "NOMBRE COMERCIAL"
     })
