@@ -1771,18 +1771,18 @@ else:
 # FOOTER – Logos institucionales (al final de todo)
 # ======================================================
 
-st.markdown('<hr class="soft-hr"/>', unsafe_allow_html=True)
+#st.markdown('<hr class="soft-hr"/>', unsafe_allow_html=True)
 
-col1, col2, col3 = st.columns([1, 3, 1])
+#col1, col2, col3 = st.columns([1, 3, 1])
 
-with col2:
-    try:
-        st.image(Image.open(LOGO_SOMOSUNO_PATH), width=520)
-    except Exception:
-        pass
+#with col2:
+#    try:
+#        st.image(Image.open(LOGO_SOMOSUNO_PATH), width=520)
+#    except Exception:
+#        pass
 
-st.caption(
-    "Herramienta desarrollada en el marco del estudio sobre acuerdos verticales "
-    "en la distribución minorista de combustibles líquidos – Fondo SOLDICOM / FENDIPETRÓLEO / COMCE."
-    " © 2026"
-)
+#st.caption(
+#    "Herramienta desarrollada en el marco del estudio sobre acuerdos verticales "
+#    "en la distribución minorista de combustibles líquidos – Fondo SOLDICOM / FENDIPETRÓLEO / COMCE."
+#    " © 2026"
+#)
