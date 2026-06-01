@@ -1559,6 +1559,7 @@ elif st.session_state.step == 2:
                 st.rerun()
     
     st.markdown("</div>", unsafe_allow_html=True)
+    
     render_footer()
 # -----------------------------
 # STEP 3: Resultados
