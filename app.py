@@ -1287,6 +1287,27 @@ def build_excel_report(
     return output
 
 
+# ======================================================
+# FOOTER – Logos institucionales
+# ======================================================
+
+def render_footer():
+    st.markdown('<hr class="soft-hr"/>', unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns([1, 3, 1])
+
+    with col2:
+        try:
+            st.image(Image.open(LOGO_SOMOSUNO_PATH), width=520)
+        except Exception:
+            pass
+
+    st.caption(
+        "Herramienta desarrollada en el marco del estudio sobre acuerdos verticales "
+        "en la distribución minorista de combustibles líquidos – Fondo SOLDICOM / FENDIPETRÓLEO / COMCE."
+        " © 2026"
+    )
+
 # -----------------------------
 # STEP 1: Introducción
 # -----------------------------
@@ -1359,7 +1380,8 @@ Esta herramienta permite **identificar y priorizar** riesgos potenciales derivad
                 st.session_state.competitors_df = competitors_df
                 go(2)
                 st.rerun()
-
+    render_footer()
+    
 # -----------------------------
 # STEP 2: Forma y Estructura
 # -----------------------------
@@ -1520,7 +1542,7 @@ elif st.session_state.step == 2:
             go(3)
 
     st.markdown("</div>", unsafe_allow_html=True)
-
+    render_footer()
 # -----------------------------
 # STEP 3: Resultados
 # -----------------------------
@@ -1743,7 +1765,7 @@ else:
 
 
         st.markdown("</div>", unsafe_allow_html=True)
-
+        render_footer()
 
 # ======================================================
 # FOOTER – Logos institucionales (al final de todo)
