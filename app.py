@@ -385,123 +385,319 @@ def step_badge():
 # -----------------------------
 def normalize_code(value) -> str:
     """
-    Normaliza códigos SICOM/COMPETIDOR.
-    Ejemplo: 610004.0 -> 610004
+    Normaliza códigos SICOM:
+    - elimina decimales tipo 610004.0
+    - quita espacios
+    - conserva como texto
     """
     if pd.isna(value):
         return ""
     value = str(value).strip()
     if value.endswith(".0"):
         value = value[:-2]
-    return value
+    return value.zfill(6)
+
+def clean_text(value) -> str:
+    """
+    Limpia textos para comparar banderas.
+    """
+    if pd.isna(value):
+        return ""
+    return str(value).replace("\xa0", " ").strip().upper()
+
+def clean_verticalizada(value) -> int:
+    """
+    Convierte la variable de verticalización a 0/1.
+    Acepta 1/0, SI/NO, SÍ/NO, TRUE/FALSE.
+    """
+    if pd.isna(value):
+        return 0
+
+    v = str(value).replace("\xa0", " ").strip().upper()
+
+    if v in ["1", "1.0", "SI", "SÍ", "TRUE", "VERDADERO", "YES"]:
+        return 1
+
+    return 0
 
 
 @st.cache_data(show_spinner=False)
 def load_base_eds(path: str):
     """
-    Carga la base de EDS desde dos hojas:
-    - Datos: contiene SICOM, competidores y características del mercado relevante.
-    - Nombre: contiene el nombre comercial correcto de cada EDS por SICOM.
+    Carga la base definitiva de EDS.
+
+    La base contiene:
+    - Información de la EDS consultada.
+    - Información de competidores del mercado relevante.
+    - Variables de bandera y verticalización para el cálculo de no competencia.
     """
 
-    # Hoja principal para competidores y mercado relevante
+    nombres = pd.read_excel(path, sheet_name="Nombre", dtype=str)
     datos = pd.read_excel(path, sheet_name="Datos", dtype=str)
 
-    required_cols_datos = [
+    # -----------------------------
+    # Validar columnas mínimas
+    # -----------------------------
+    required_nombre = [
+        "SICOM",
+        "NOMBRE COMERCIAL",
+        "BANDERA_EDS",
+    ]
+
+    required_datos = [
         "SICOM",
         "COMPETIDOR",
-        "NOMBRE COMERCIAL",
-        "BANDERA",
-        "DEPARTAMENTO",
-        "MUNICIPIO",
-        "Nom_Com",
-        "BANDERA_COM",
+        "NOMBRE_COMERCIAL_COMPETIDOR",
+        "BANDERA_COMPETIDOR",
+        "VERTICALIZADA_COMPETIDOR",
     ]
 
-    missing_cols_datos = [c for c in required_cols_datos if c not in datos.columns]
-    if missing_cols_datos:
-        raise ValueError(f"Faltan columnas en la hoja Datos de BASE_EDS.xlsx: {missing_cols_datos}")
+    missing_nombre = [c for c in required_nombre if c not in nombres.columns]
+    missing_datos = [c for c in required_datos if c not in datos.columns]
 
-    datos = datos[required_cols_datos].copy()
+    if missing_nombre:
+        raise ValueError(f"Faltan columnas en la hoja Nombre: {missing_nombre}")
 
-    datos["SICOM_NORM"] = datos["SICOM"].apply(normalize_code)
-    datos["COMPETIDOR"] = datos["COMPETIDOR"].apply(normalize_code)
+    if missing_datos:
+        raise ValueError(f"Faltan columnas en la hoja Datos: {missing_datos}")
 
-    # Hoja con nombre comercial correcto de la EDS
-    nombres = pd.read_excel(path, sheet_name="Nombre", dtype=str)
-
-    required_cols_nombre = [
-        "SICOM",
-        "NOMBRE COMERCIAL",
-    ]
-
-    missing_cols_nombre = [c for c in required_cols_nombre if c not in nombres.columns]
-    if missing_cols_nombre:
-        raise ValueError(f"Faltan columnas en la hoja Nombre de BASE_EDS.xlsx: {missing_cols_nombre}")
-
-    nombres = nombres[required_cols_nombre].copy()
+    # -----------------------------
+    # Normalizar hoja Nombre
+    # -----------------------------
+    nombres = nombres.copy()
     nombres["SICOM_NORM"] = nombres["SICOM"].apply(normalize_code)
+    nombres["BANDERA_EDS_CLEAN"] = nombres["BANDERA_EDS"].apply(clean_text)
 
-    # Renombramos para no confundirlo con NOMBRE COMERCIAL de la hoja Datos
-    nombres = nombres.rename(columns={
-        "NOMBRE COMERCIAL": "NOMBRE_EDS"
+    # Buscar columna de verticalización de la EDS
+    posibles_cols_verticalizada_eds = [
+        "VERTICALIZADA_EDS",
+        "VERTICALIZADA",
+        "Verticalizada",
+        "verticalizada",
+    ]
+
+    col_verticalizada_eds = None
+    for col in posibles_cols_verticalizada_eds:
+        if col in nombres.columns:
+            col_verticalizada_eds = col
+            break
+
+    if col_verticalizada_eds is None:
+        raise ValueError(
+            "No se encontró la columna de verticalización de la EDS en la hoja Nombre. "
+            "Debe existir una columna como VERTICALIZADA_EDS o VERTICALIZADA."
+        )
+
+    nombres["VERTICALIZADA_EDS_CLEAN"] = nombres[col_verticalizada_eds].apply(clean_verticalizada)
+
+    # -----------------------------
+    # Normalizar hoja Datos
+    # -----------------------------
+    datos = datos.copy()
+    datos["SICOM_NORM"] = datos["SICOM"].apply(normalize_code)
+    datos["COMPETIDOR_NORM"] = datos["COMPETIDOR"].apply(normalize_code)
+    datos["BANDERA_COMPETIDOR_CLEAN"] = datos["BANDERA_COMPETIDOR"].apply(clean_text)
+    datos["VERTICALIZADA_COMPETIDOR_CLEAN"] = datos["VERTICALIZADA_COMPETIDOR"].apply(clean_verticalizada)
+
+    return nombres, datos
+
+
+def compute_no_competencia_score(
+    competitors_df: pd.DataFrame,
+    eds_info: dict
+) -> dict:
+    """
+    Calcula el Puntaje de No Competencia incluyendo:
+    - la EDS consultada;
+    - los competidores de su mercado relevante.
+
+    Total EDS = competidores identificados + EDS consultada.
+    """
+
+    bandera_eds = clean_text(eds_info.get("BANDERA", ""))
+    sicom_eds = normalize_code(eds_info.get("SICOM", ""))
+    verticalizada_eds = int(eds_info.get("VERTICALIZADA_EDS", 0))
+
+    # -----------------------------
+    # Construir universo del mercado relevante
+    # Incluye competidores + EDS consultada
+    # -----------------------------
+    rows = []
+
+    # 1. Agregar competidores
+    if competitors_df is not None and not competitors_df.empty:
+        for _, r in competitors_df.iterrows():
+            rows.append({
+                "SICOM": normalize_code(r.get("COMPETIDOR", "")),
+                "BANDERA": clean_text(r.get("BANDERA_COMPETIDOR", "")),
+                "VERTICALIZADA": int(r.get("VERTICALIZADA_COMPETIDOR", 0)),
+                "TIPO": "COMPETIDOR",
+            })
+
+    # 2. Agregar la EDS consultada
+    rows.append({
+        "SICOM": sicom_eds,
+        "BANDERA": bandera_eds,
+        "VERTICALIZADA": verticalizada_eds,
+        "TIPO": "EDS_CONSULTADA",
     })
 
-    return datos, nombres
+    market_df = pd.DataFrame(rows)
+
+    # Evitar duplicados si la EDS consultada aparece accidentalmente como competidor
+    market_df = market_df.drop_duplicates(subset=["SICOM"])
+
+    total_eds = len(market_df)
+
+    if total_eds == 0:
+        return {
+            "total_eds": 0,
+            "competidores_identificados": 0,
+            "eds_verticalizadas": 0,
+            "eds_verticalizadas_misma_bandera": 0,
+            "eds_misma_bandera": 0,
+            "alpha_1": 0.0,
+            "alpha_2": 0.0,
+            "alpha_3": 0.0,
+            "puntaje_no_competencia": 0.0,
+        }
+
+    is_verticalizada = market_df["VERTICALIZADA"].eq(1)
+    is_misma_bandera = market_df["BANDERA"].eq(bandera_eds)
+
+    eds_verticalizadas = int(is_verticalizada.sum())
+    eds_verticalizadas_misma_bandera = int((is_verticalizada & is_misma_bandera).sum())
+    eds_misma_bandera = int(is_misma_bandera.sum())
+
+    alpha_1 = eds_verticalizadas / total_eds
+    alpha_2 = eds_verticalizadas_misma_bandera / total_eds
+    alpha_3 = eds_misma_bandera / total_eds
+
+    puntaje_no_competencia = alpha_1 * alpha_2 * alpha_3
+
+    return {
+        "total_eds": total_eds,
+        "competidores_identificados": total_eds - 1,
+        "eds_verticalizadas": eds_verticalizadas,
+        "eds_verticalizadas_misma_bandera": eds_verticalizadas_misma_bandera,
+        "eds_misma_bandera": eds_misma_bandera,
+        "alpha_1": alpha_1,
+        "alpha_2": alpha_2,
+        "alpha_3": alpha_3,
+        "puntaje_no_competencia": puntaje_no_competencia,
+    }
 
 
 def get_market_relevant_info(sicom_code: str):
     """
-    Busca la EDS por SICOM y retorna:
-    - información de la EDS consultada
-    - competidores del mercado relevante
+    Busca la EDS consultada por código SICOM y retorna:
+    - información de la EDS consultada;
+    - competidores del mercado relevante;
+    - métricas del Puntaje de No Competencia.
 
-    La información de competidores se toma de la hoja 'Datos'.
-    El nombre comercial correcto de la EDS se toma de la hoja 'Nombre'.
+    La EDS consultada se busca en la hoja Nombre.
+    Los competidores se buscan en la hoja Datos.
     """
 
-    datos, nombres = load_base_eds(BASE_EDS_PATH)
+    nombres, datos = load_base_eds(BASE_EDS_PATH)
 
     sicom_norm = normalize_code(sicom_code)
 
-    # Filtrar competidores desde hoja Datos
-    subset = datos[datos["SICOM_NORM"] == sicom_norm].copy()
+    # -----------------------------
+    # 1. Buscar EDS consultada en hoja Nombre
+    # -----------------------------
+    eds_match = nombres[nombres["SICOM_NORM"] == sicom_norm].copy()
 
-    if subset.empty:
+    if eds_match.empty:
         return None, pd.DataFrame()
 
-    first = subset.iloc[0]
-
-    # Buscar nombre correcto de la EDS en hoja Nombre
-    nombre_match = nombres[nombres["SICOM_NORM"] == sicom_norm].copy()
-
-    if not nombre_match.empty:
-        nombre_eds = nombre_match.iloc[0].get("NOMBRE_EDS", "No disponible")
-    else:
-        # Fallback si por alguna razón no aparece en Nombre
-        nombre_eds = first.get("NOMBRE COMERCIAL", "No disponible")
+    eds_row = eds_match.iloc[0]
 
     eds_info = {
         "SICOM": sicom_norm,
-        "NOMBRE COMERCIAL": nombre_eds,
-        "BANDERA": first.get("BANDERA", "No disponible"),
-        "DEPARTAMENTO": first.get("DEPARTAMENTO", "No disponible"),
-        "MUNICIPIO": first.get("MUNICIPIO", "No disponible"),
+        "NOMBRE COMERCIAL": eds_row.get("NOMBRE COMERCIAL", "No disponible"),
+        "BANDERA": eds_row.get("BANDERA_EDS", "No disponible"),
+        "VERTICALIZADA_EDS": int(eds_row.get("VERTICALIZADA_EDS_CLEAN", 0)),
     }
 
-    competitors = subset[["COMPETIDOR", "Nom_Com", "BANDERA_COM"]].copy()
+    # Departamento y municipio pueden estar en Nombre
+    if "DEPARTAMENTO" in nombres.columns:
+        eds_info["DEPARTAMENTO"] = eds_row.get("DEPARTAMENTO", "No disponible")
+    else:
+        eds_info["DEPARTAMENTO"] = "No disponible"
 
-    competitors = competitors.rename(columns={
-        "Nom_Com": "NOMBRE COMERCIAL"
-    })
+    if "MUNICIPIO" in nombres.columns:
+        eds_info["MUNICIPIO"] = eds_row.get("MUNICIPIO", "No disponible")
+    else:
+        eds_info["MUNICIPIO"] = "No disponible"
 
-    competitors = competitors.drop_duplicates()
-    competitors = competitors.sort_values(
-        by=["BANDERA_COM", "NOMBRE COMERCIAL"],
-        na_position="last"
+    # -----------------------------
+    # 2. Buscar competidores en hoja Datos
+    # -----------------------------
+    subset = datos[datos["SICOM_NORM"] == sicom_norm].copy()
+
+    if not subset.empty:
+        first = subset.iloc[0]
+
+        # Si departamento o municipio no estaban en Nombre, usar Datos
+        if eds_info["DEPARTAMENTO"] == "No disponible" and "DEPARTAMENTO" in subset.columns:
+            eds_info["DEPARTAMENTO"] = first.get("DEPARTAMENTO", "No disponible")
+
+        if eds_info["MUNICIPIO"] == "No disponible" and "MUNICIPIO" in subset.columns:
+            eds_info["MUNICIPIO"] = first.get("MUNICIPIO", "No disponible")
+
+        competitors = subset[
+            [
+                "COMPETIDOR",
+                "NOMBRE_COMERCIAL_COMPETIDOR",
+                "BANDERA_COMPETIDOR",
+                "VERTICALIZADA_COMPETIDOR_CLEAN",
+            ]
+        ].copy()
+
+        competitors = competitors.rename(columns={
+            "VERTICALIZADA_COMPETIDOR_CLEAN": "VERTICALIZADA_COMPETIDOR"
+        })
+
+        competitors = competitors.drop_duplicates(subset=["COMPETIDOR"])
+
+        competitors = competitors.sort_values(
+            by=["BANDERA_COMPETIDOR", "NOMBRE_COMERCIAL_COMPETIDOR"],
+            na_position="last"
+        )
+
+    else:
+        competitors = pd.DataFrame(
+            columns=[
+                "COMPETIDOR",
+                "NOMBRE_COMERCIAL_COMPETIDOR",
+                "BANDERA_COMPETIDOR",
+                "VERTICALIZADA_COMPETIDOR",
+            ]
+        )
+
+    # -----------------------------
+    # 3. Calcular ratios incluyendo la EDS consultada
+    # -----------------------------
+    no_comp_metrics = compute_no_competencia_score(
+        competitors_df=competitors,
+        eds_info=eds_info
     )
 
+    eds_info.update({
+        "TOTAL_EDS": no_comp_metrics["total_eds"],
+        "COMPETIDORES_IDENTIFICADOS": no_comp_metrics["competidores_identificados"],
+        "EDS_VERTICALIZADAS": no_comp_metrics["eds_verticalizadas"],
+        "EDS_VERTICALIZADAS_MISMA_BANDERA": no_comp_metrics["eds_verticalizadas_misma_bandera"],
+        "EDS_MISMA_BANDERA": no_comp_metrics["eds_misma_bandera"],
+        "ALPHA_1": no_comp_metrics["alpha_1"],
+        "ALPHA_2": no_comp_metrics["alpha_2"],
+        "ALPHA_3": no_comp_metrics["alpha_3"],
+        "PUNTAJE_NO_COMPETENCIA": no_comp_metrics["puntaje_no_competencia"],
+    })
+
     return eds_info, competitors
+    
 
 def render_competitors_table(competitors_df: pd.DataFrame):
     """
