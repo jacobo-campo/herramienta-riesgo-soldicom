@@ -445,8 +445,8 @@ def load_base_eds(path: str):
     # -----------------------------
     required_nombre = [
         "SICOM",
-        "NOMBRE COMERCIAL",
-        "BANDERA_EDS",
+        "NOMBRE_COMERCIAL_SICOM",
+        "BANDERA_SICOM",
     ]
 
     missing_nombre = [c for c in required_nombre if c not in nombres.columns]
@@ -459,7 +459,7 @@ def load_base_eds(path: str):
 
     nombres = nombres.copy()
     nombres["SICOM_NORM"] = nombres["SICOM"].apply(normalize_code)
-    nombres["BANDERA_EDS_CLEAN"] = nombres["BANDERA_EDS"].apply(clean_text)
+    nombres["BANDERA_EDS_CLEAN"] = nombres["BANDERA_SICOM"].apply(clean_text)
 
     # Verticalización de la EDS consultada
     # Acepta varios posibles nombres de columna
