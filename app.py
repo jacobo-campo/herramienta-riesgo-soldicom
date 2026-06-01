@@ -376,6 +376,13 @@ if "competitors_df" not in st.session_state:
 def go(step: int):
     st.session_state.step = step
 
+def reset_app():
+    st.session_state.step = 1
+    st.session_state.result = None
+    st.session_state.sicom_code = None
+    st.session_state.eds_info = None
+    st.session_state.competitors_df = pd.DataFrame()
+
 def step_badge():
     st.markdown(f"<span class='badge'>Paso {st.session_state.step} de 3</span>", unsafe_allow_html=True)
     st.write("")
@@ -1640,12 +1647,21 @@ else:
                 "No constituye una determinación de infracción ni sustituye un análisis jurídico-económico de fondo."
             )
 
+
         with right:
             st.subheader("Acciones")
+
             if st.button("⟵ Modificar respuestas"):
                 go(2)
+            st.rerun()
+
+            if st.button("✅ Finalizar"):
+                reset_app()
+                st.rerun()
 
             st.markdown("")
+
+            
             # Exportación (PDF y Excel)
             eds_info_report = st.session_state.get("eds_info", None)
             competitors_report = st.session_state.get("competitors_df", pd.DataFrame())
