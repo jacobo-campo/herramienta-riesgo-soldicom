@@ -1518,37 +1518,46 @@ elif st.session_state.step == 2:
     with col_back:
         if st.button("⟵ Volver"):
             go(1)
+
+
+
     with col_calc:
         if st.button("Calcular"):
+
+            formulario_valido = True
+
             if tipo_duracion is None:
                 st.warning("Por favor indique si la duración está definida en cantidad o tiempo.")
-                st.stop()
+                formulario_valido = False
 
-            inputs = {
-                "exclusividad": exclusividad,
-                "tipo_duracion": tipo_duracion,
-                "duracion_meses": int(duracion_meses),
-                "penalidades": penalidades,
-                "clausulas_precio": clausulas_precio,
-                "control_operativo": control_operativo,
-                "sancion_mayorista": sancion_mayorista,
-                "datos_compartidos": datos_compartidos,
-            }
+            if formulario_valido:
+                inputs = {
+                    "exclusividad": exclusividad,
+                    "tipo_duracion": tipo_duracion,
+                    "duracion_meses": int(duracion_meses),
+                    "penalidades": penalidades,
+                    "clausulas_precio": clausulas_precio,
+                    "control_operativo": control_operativo,
+                    "sancion_mayorista": sancion_mayorista,
+                    "datos_compartidos": datos_compartidos,
+                }
 
-            puntaje_no_competencia = 0.0
-            if st.session_state.get("eds_info") is not None:
-                puntaje_no_competencia = float(
-                    st.session_state.eds_info.get("PUNTAJE_NO_COMPETENCIA", 0.0)
+                puntaje_no_competencia = 0.0
+
+                if st.session_state.get("eds_info") is not None:
+                    puntaje_no_competencia = float(
+                        st.session_state.eds_info.get("PUNTAJE_NO_COMPETENCIA", 0.0)
+                    )
+
+                st.session_state.result = compute_score(
+                    params=params,
+                    inputs=inputs,
+                    puntaje_no_competencia=puntaje_no_competencia
                 )
 
-            st.session_state.result = compute_score(
-                params=params,
-                inputs=inputs,
-                puntaje_no_competencia=puntaje_no_competencia
-            )
-            go(3)
-            st.rerun()
-            
+                go(3)
+                st.rerun()
+    
     st.markdown("</div>", unsafe_allow_html=True)
     render_footer()
 # -----------------------------
