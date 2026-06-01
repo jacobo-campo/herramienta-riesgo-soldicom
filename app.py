@@ -1540,7 +1540,8 @@ elif st.session_state.step == 2:
                 puntaje_no_competencia=puntaje_no_competencia
             )
             go(3)
-
+            st.rerun()
+            
     st.markdown("</div>", unsafe_allow_html=True)
     render_footer()
 # -----------------------------
