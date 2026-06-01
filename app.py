@@ -426,17 +426,22 @@ def load_base_eds(path: str):
     """
     Carga la base definitiva de EDS.
 
-    La base contiene:
+    Hoja Nombre:
     - Información de la EDS consultada.
-    - Información de competidores del mercado relevante.
-    - Variables de bandera y verticalización para el cálculo de no competencia.
+
+    Hoja Datos:
+    - Competidores del mercado relevante.
     """
 
     nombres = pd.read_excel(path, sheet_name="Nombre", dtype=str)
     datos = pd.read_excel(path, sheet_name="Datos", dtype=str)
 
+    # Limpiar nombres de columnas por si vienen con espacios
+    nombres.columns = [str(c).strip() for c in nombres.columns]
+    datos.columns = [str(c).strip() for c in datos.columns]
+
     # -----------------------------
-    # Validar columnas mínimas
+    # Validación hoja Nombre
     # -----------------------------
     required_nombre = [
         "SICOM",
@@ -444,63 +449,107 @@ def load_base_eds(path: str):
         "BANDERA_EDS",
     ]
 
-    required_datos = [
-        "SICOM",
-        "COMPETIDOR",
-        "NOMBRE_COMERCIAL_COMPETIDOR",
-        "BANDERA_COMPETIDOR",
-        "VERTICALIZADA_COMPETIDOR",
-    ]
-
     missing_nombre = [c for c in required_nombre if c not in nombres.columns]
-    missing_datos = [c for c in required_datos if c not in datos.columns]
 
     if missing_nombre:
-        raise ValueError(f"Faltan columnas en la hoja Nombre: {missing_nombre}")
+        raise ValueError(
+            f"Faltan columnas en la hoja Nombre: {missing_nombre}. "
+            f"Columnas disponibles: {list(nombres.columns)}"
+        )
 
-    if missing_datos:
-        raise ValueError(f"Faltan columnas en la hoja Datos: {missing_datos}")
-
-    # -----------------------------
-    # Normalizar hoja Nombre
-    # -----------------------------
     nombres = nombres.copy()
     nombres["SICOM_NORM"] = nombres["SICOM"].apply(normalize_code)
     nombres["BANDERA_EDS_CLEAN"] = nombres["BANDERA_EDS"].apply(clean_text)
 
-    # Buscar columna de verticalización de la EDS
+    # Verticalización de la EDS consultada
+    # Acepta varios posibles nombres de columna
     posibles_cols_verticalizada_eds = [
+        "VERTICALIZADA_SICOM",
         "VERTICALIZADA_EDS",
         "VERTICALIZADA",
         "Verticalizada",
         "verticalizada",
+        "Verticalizada_EDS",
     ]
 
     col_verticalizada_eds = None
+
     for col in posibles_cols_verticalizada_eds:
         if col in nombres.columns:
             col_verticalizada_eds = col
             break
 
-    if col_verticalizada_eds is None:
+    if col_verticalizada_eds is not None:
+        nombres["VERTICALIZADA_EDS_CLEAN"] = nombres[col_verticalizada_eds].apply(clean_verticalizada)
+    else:
+        # Si la columna no existe, no se rompe la app.
+        # Pero para el cálculo definitivo debe agregarse a la hoja Nombre.
+        nombres["VERTICALIZADA_EDS_CLEAN"] = 0
+
+    # -----------------------------
+    # Validación hoja Datos
+    # -----------------------------
+    required_datos_base = [
+        "SICOM",
+        "COMPETIDOR",
+    ]
+
+    missing_datos_base = [c for c in required_datos_base if c not in datos.columns]
+
+    if missing_datos_base:
         raise ValueError(
-            "No se encontró la columna de verticalización de la EDS en la hoja Nombre. "
-            "Debe existir una columna como VERTICALIZADA_EDS o VERTICALIZADA."
+            f"Faltan columnas básicas en la hoja Datos: {missing_datos_base}. "
+            f"Columnas disponibles: {list(datos.columns)}"
         )
 
-    nombres["VERTICALIZADA_EDS_CLEAN"] = nombres[col_verticalizada_eds].apply(clean_verticalizada)
-
-    # -----------------------------
-    # Normalizar hoja Datos
-    # -----------------------------
     datos = datos.copy()
     datos["SICOM_NORM"] = datos["SICOM"].apply(normalize_code)
     datos["COMPETIDOR_NORM"] = datos["COMPETIDOR"].apply(normalize_code)
+
+    # -----------------------------
+    # Homologar nombres de columnas de competidores
+    # -----------------------------
+
+    # Nombre comercial del competidor
+    if "NOMBRE_COMERCIAL_COMPETIDOR" not in datos.columns:
+        if "Nom_Com" in datos.columns:
+            datos["NOMBRE_COMERCIAL_COMPETIDOR"] = datos["Nom_Com"]
+        elif "NOMBRE COMERCIAL COMPETIDOR" in datos.columns:
+            datos["NOMBRE_COMERCIAL_COMPETIDOR"] = datos["NOMBRE COMERCIAL COMPETIDOR"]
+        else:
+            raise ValueError(
+                "No se encontró la columna del nombre comercial del competidor. "
+                "Debe existir NOMBRE_COMERCIAL_COMPETIDOR o Nom_Com."
+            )
+
+    # Bandera del competidor
+    if "BANDERA_COMPETIDOR" not in datos.columns:
+        if "BANDERA_COM" in datos.columns:
+            datos["BANDERA_COMPETIDOR"] = datos["BANDERA_COM"]
+        elif "BANDERA COMPETIDOR" in datos.columns:
+            datos["BANDERA_COMPETIDOR"] = datos["BANDERA COMPETIDOR"]
+        else:
+            raise ValueError(
+                "No se encontró la columna de bandera del competidor. "
+                "Debe existir BANDERA_COMPETIDOR o BANDERA_COM."
+            )
+
+    # Verticalización del competidor
+    if "VERTICALIZADA_COMPETIDOR" not in datos.columns:
+        if "Verticalizada" in datos.columns:
+            datos["VERTICALIZADA_COMPETIDOR"] = datos["Verticalizada"]
+        elif "VERTICALIZADA" in datos.columns:
+            datos["VERTICALIZADA_COMPETIDOR"] = datos["VERTICALIZADA"]
+        else:
+            raise ValueError(
+                "No se encontró la columna de verticalización del competidor. "
+                "Debe existir VERTICALIZADA_COMPETIDOR o Verticalizada."
+            )
+
     datos["BANDERA_COMPETIDOR_CLEAN"] = datos["BANDERA_COMPETIDOR"].apply(clean_text)
     datos["VERTICALIZADA_COMPETIDOR_CLEAN"] = datos["VERTICALIZADA_COMPETIDOR"].apply(clean_verticalizada)
 
     return nombres, datos
-
 
 def compute_no_competencia_score(
     competitors_df: pd.DataFrame,
@@ -594,9 +643,6 @@ def get_market_relevant_info(sicom_code: str):
     - información de la EDS consultada;
     - competidores del mercado relevante;
     - métricas del Puntaje de No Competencia.
-
-    La EDS consultada se busca en la hoja Nombre.
-    Los competidores se buscan en la hoja Datos.
     """
 
     nombres, datos = load_base_eds(BASE_EDS_PATH)
@@ -620,7 +666,6 @@ def get_market_relevant_info(sicom_code: str):
         "VERTICALIZADA_EDS": int(eds_row.get("VERTICALIZADA_EDS_CLEAN", 0)),
     }
 
-    # Departamento y municipio pueden estar en Nombre
     if "DEPARTAMENTO" in nombres.columns:
         eds_info["DEPARTAMENTO"] = eds_row.get("DEPARTAMENTO", "No disponible")
     else:
@@ -639,7 +684,6 @@ def get_market_relevant_info(sicom_code: str):
     if not subset.empty:
         first = subset.iloc[0]
 
-        # Si departamento o municipio no estaban en Nombre, usar Datos
         if eds_info["DEPARTAMENTO"] == "No disponible" and "DEPARTAMENTO" in subset.columns:
             eds_info["DEPARTAMENTO"] = first.get("DEPARTAMENTO", "No disponible")
 
