@@ -1737,6 +1737,7 @@ else:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.header("Resultados")
 
+
         # -----------------------------
         # Información de la EDS y mercado relevante
         # -----------------------------
