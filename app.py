@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 import io
+import gspread
+from google.oauth2.service_account import Credentials
 from datetime import datetime
 from pathlib import Path
 from reportlab.lib.pagesizes import letter
@@ -1315,6 +1317,156 @@ def render_footer():
         " © 2026"
     )
 
+# ======================================================
+# HISTÓRICO EN GOOGLE SHEETS
+# ======================================================
+
+HISTORY_HEADERS = [
+    "Fecha y Hora",
+    "Puntaje_contractual",
+    "Ajuste_no_competencia_%",
+    "Puntaje_final",
+    "Probabilidad_%",
+    "Semáforo",
+    "Bucket",
+    "SICOM",
+    "Nombre_EDS",
+    "Bandera_EDS",
+    "Departamento",
+    "Municipio",
+    "Numero_competidores",
+    "ALPHA_1",
+    "ALPHA_2",
+    "ALPHA_3",
+    "valor_exclusividad",
+    "valor_tipo_duracion",
+    "valor_duracion_meses",
+    "valor_penalidades",
+    "valor_clausulas_precio",
+    "valor_control_operativo",
+    "valor_sancion_mayorista",
+    "valor_datos_compartidos",
+]
+
+
+@st.cache_resource(show_spinner=False)
+def get_gsheet_worksheet():
+    """
+    Conecta con Google Sheets usando credenciales guardadas en Streamlit Secrets.
+    """
+
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+    ]
+
+    service_account_info = dict(st.secrets["gcp_service_account"])
+
+    # Evita errores con saltos de línea en private_key
+    if "private_key" in service_account_info:
+        service_account_info["private_key"] = service_account_info["private_key"].replace("\\n", "\n")
+
+    credentials = Credentials.from_service_account_info(
+        service_account_info,
+        scopes=scopes
+    )
+
+    client = gspread.authorize(credentials)
+
+    spreadsheet_id = st.secrets["gcp_sheet"]["spreadsheet_id"]
+    worksheet_name = st.secrets["gcp_sheet"].get("worksheet_name", "Historico")
+
+    spreadsheet = client.open_by_key(spreadsheet_id)
+
+    try:
+        worksheet = spreadsheet.worksheet(worksheet_name)
+    except gspread.WorksheetNotFound:
+        worksheet = spreadsheet.add_worksheet(
+            title=worksheet_name,
+            rows=1000,
+            cols=len(HISTORY_HEADERS)
+        )
+
+    return worksheet
+
+
+def ensure_history_headers(worksheet):
+    """
+    Crea encabezados si la hoja está vacía.
+    """
+
+    first_row = worksheet.row_values(1)
+
+    if not first_row:
+        worksheet.append_row(
+            HISTORY_HEADERS,
+            value_input_option="USER_ENTERED"
+        )
+
+
+def build_history_row(res: dict, eds_info: dict, competitors_df: pd.DataFrame) -> list:
+    """
+    Construye una fila del histórico con la estructura requerida.
+    """
+
+    inputs = res.get("inputs", {})
+
+    row = [
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        round(res.get("score_preguntas", res.get("score", 0)), 4),
+        round(100 * res.get("puntaje_no_competencia", 0.0), 6),
+        round(res.get("score", 0), 4),
+        round(100 * res.get("p", 0), 4),
+        res.get("label", ""),
+        res.get("bucket", ""),
+        eds_info.get("SICOM", "") if eds_info else "",
+        eds_info.get("NOMBRE COMERCIAL", "") if eds_info else "",
+        eds_info.get("BANDERA", "") if eds_info else "",
+        eds_info.get("DEPARTAMENTO", "") if eds_info else "",
+        eds_info.get("MUNICIPIO", "") if eds_info else "",
+        eds_info.get("COMPETIDORES_IDENTIFICADOS", 0) if eds_info else 0,
+        round(eds_info.get("ALPHA_1", 0.0), 6) if eds_info else 0,
+        round(eds_info.get("ALPHA_2", 0.0), 6) if eds_info else 0,
+        round(eds_info.get("ALPHA_3", 0.0), 6) if eds_info else 0,
+        inputs.get("exclusividad", ""),
+        inputs.get("tipo_duracion", ""),
+        inputs.get("duracion_meses", ""),
+        inputs.get("penalidades", ""),
+        inputs.get("clausulas_precio", ""),
+        inputs.get("control_operativo", ""),
+        inputs.get("sancion_mayorista", ""),
+        inputs.get("datos_compartidos", ""),
+    ]
+
+    return row
+
+
+def save_result_to_history(res: dict, eds_info: dict, competitors_df: pd.DataFrame) -> bool:
+    """
+    Guarda una evaluación en el Google Sheet histórico.
+    Devuelve True si guardó correctamente y False si falló.
+    """
+
+    try:
+        worksheet = get_gsheet_worksheet()
+        ensure_history_headers(worksheet)
+
+        row = build_history_row(
+            res=res,
+            eds_info=eds_info,
+            competitors_df=competitors_df
+        )
+
+        worksheet.append_row(
+            row,
+            value_input_option="USER_ENTERED"
+        )
+
+        return True
+
+    except Exception as e:
+        st.session_state["history_error"] = str(e)
+        return False
+
 # -----------------------------
 # STEP 1: Introducción
 # -----------------------------
@@ -1545,15 +1697,27 @@ elif st.session_state.step == 2:
                     st.session_state.eds_info.get("PUNTAJE_NO_COMPETENCIA", 0.0)
                 )
 
-            st.session_state.result = compute_score(
+            res_tmp = compute_score(
                 params=params,
                 inputs=inputs,
                 puntaje_no_competencia=puntaje_no_competencia
             )
 
+            st.session_state.result = res_tmp
+
+            # Guardar histórico en Google Sheets
+            history_saved = save_result_to_history(
+                res=res_tmp,
+                eds_info=st.session_state.get("eds_info", {}),
+                competitors_df=st.session_state.get("competitors_df", pd.DataFrame())
+            )
+
+            st.session_state["history_saved"] = history_saved
+
             go(3)
             st.rerun()
-    
+
+
     st.markdown("</div>", unsafe_allow_html=True)
     
     render_footer()
@@ -1682,11 +1846,11 @@ else:
                 logo_somosuno_path=LOGO_SOMOSUNO_PATH
             )
 
-            xlsx_buffer = build_excel_report(
-                res,
-                eds_info=eds_info_report,
-                competitors_df=competitors_report
-            )
+#            xlsx_buffer = build_excel_report(
+#                res,
+#                eds_info=eds_info_report,
+#                competitors_df=competitors_report
+#            )
 
             st.download_button(
                 label="📄 Exportar a PDF",
@@ -1695,12 +1859,12 @@ else:
                 mime="application/pdf"
             )
 
-            st.download_button(
-                label="📊 Exportar a Excel",
-                data=xlsx_buffer,
-                file_name=f"reporte_riesgo_soldicom_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+#            st.download_button(
+#                label="📊 Exportar a Excel",
+#                data=xlsx_buffer,
+#                file_name=f"reporte_riesgo_soldicom_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+#                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+#            )
 
             st.markdown("")
 
