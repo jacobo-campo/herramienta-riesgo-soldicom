@@ -811,18 +811,43 @@ def compute_score(params: dict, inputs: dict, puntaje_no_competencia: float = 0.
         "datos_compartidos": yesno(inputs["datos_compartidos"]),
     }
 
+
+
     max_score = sum(weights.values()) if sum(weights.values()) > 0 else 1
     raw_score = sum(weights[k] * x[k] for k in x.keys())
 
     # Puntaje contractual o Puntaje de Preguntas
     score_preguntas = 100.0 * raw_score / max_score
 
-    # Ajuste por mercado relevante o Puntaje de No Competencia
-    score_final_sin_tope = (1.0 + float(puntaje_no_competencia)) * score_preguntas
+    # ------------------------------------------------------
+    # Ajuste por mercado relevante / No Competencia
+    # ------------------------------------------------------
+    # puntaje_no_competencia viene de:
+    # alpha_1 * alpha_2 * alpha_3
+    puntaje_no_competencia_raw = float(puntaje_no_competencia)
+
+    # Media geométrica: transforma la productoria para evitar ajustes demasiado pequeños
+    if puntaje_no_competencia_raw > 0:
+        indice_no_competencia = puntaje_no_competencia_raw ** (1 / 3)
+    else:
+        indice_no_competencia = 0.0
+
+    # Parámetro de intensidad del ajuste
+    gamma_no_competencia = 1 / 3
+
+    # Ajuste efectivamente aplicado al puntaje contractual
+    ajuste_no_competencia_aplicado = gamma_no_competencia * indice_no_competencia
+
+    # Factor multiplicativo final
+    factor_ajuste_no_competencia = 1.0 + ajuste_no_competencia_aplicado
+
+    # Puntaje final ajustado
+    score_final_sin_tope = factor_ajuste_no_competencia * score_preguntas
 
     # Mantener escala 0-100
     score = min(100.0, score_final_sin_tope)
 
+    # Probabilidad orientativa de riesgo
     p = 1.0 / (1.0 + np.exp(-alpha * (score - center)))
 
     if score <= threshold_green:
@@ -851,7 +876,16 @@ def compute_score(params: dict, inputs: dict, puntaje_no_competencia: float = 0.
     return {
         "score": score,
         "score_preguntas": score_preguntas,
-        "puntaje_no_competencia": float(puntaje_no_competencia),
+        # Productoria original alpha_1 * alpha_2 * alpha_3
+        "puntaje_no_competencia": puntaje_no_competencia_raw,
+        # Índice transformado mediante media geométrica
+        "indice_no_competencia": indice_no_competencia,
+        # Parámetro de intensidad
+        "gamma_no_competencia": gamma_no_competencia,
+        # Ajuste realmente aplicado: gamma * indice_no_competencia
+        "ajuste_no_competencia_aplicado": ajuste_no_competencia_aplicado,
+        # Factor multiplicativo: 1 + ajuste
+        "factor_ajuste_no_competencia": factor_ajuste_no_competencia,
         "score_final_sin_tope": score_final_sin_tope,
         "p": p,
         "bucket": bucket,
@@ -1325,6 +1359,10 @@ HISTORY_HEADERS = [
     "Fecha y Hora",
     "Puntaje_contractual",
     "Ajuste_no_competencia_%",
+    "Puntaje_no_competencia_raw",
+    "Indice_no_competencia",
+    "Gamma_no_competencia",
+    "Factor_ajuste_no_competencia",
     "Puntaje_final",
     "Probabilidad_%",
     "Semáforo",
@@ -1413,7 +1451,11 @@ def build_history_row(res: dict, eds_info: dict, competitors_df: pd.DataFrame) -
     row = [
         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         round(res.get("score_preguntas", res.get("score", 0)), 4),
-        round(100 * res.get("puntaje_no_competencia", 0.0), 6),
+        round(100 * res.get("ajuste_no_competencia_aplicado", 0.0), 6),
+        round(res.get("puntaje_no_competencia", 0.0), 8),
+        round(res.get("indice_no_competencia", 0.0), 8),
+        round(res.get("gamma_no_competencia", 0.0), 8),
+        round(res.get("factor_ajuste_no_competencia", 1.0), 8),
         round(res.get("score", 0), 4),
         round(100 * res.get("p", 0), 4),
         res.get("label", ""),
@@ -1810,7 +1852,9 @@ else:
             st.subheader("Resultado de la evaluación")
 
             st.write(f"**Puntaje contractual:** {res.get('score_preguntas', res['score']):.1f} / 100")
-            st.write(f"**Ajuste por mercado relevante:** {100*res.get('puntaje_no_competencia', 0.0):.2f}%")
+            st.write(f"**Índice de no competencia:** {100*res.get('indice_no_competencia', 0.0):.2f}%")
+            st.write(f"**Intensidad del ajuste:** {res.get('gamma_no_competencia', 0.0):.3f}")
+            st.write(f"**Ajuste aplicado al puntaje contractual:** {100*res.get('ajuste_no_competencia_aplicado', 0.0):.2f}%")
             st.write(f"**Puntaje final de riesgo:** {res['score']:.1f} / 100")
             st.write(f"**Probabilidad estimada de riesgo:** {100*res['p']:.1f}%")
             st.write(f"**Clasificación:** {res['bucket']}")
