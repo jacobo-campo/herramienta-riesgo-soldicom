@@ -1852,9 +1852,9 @@ else:
             st.subheader("Resultado de la evaluación")
 
             st.write(f"**Puntaje contractual:** {res.get('score_preguntas', res['score']):.1f} / 100")
-            st.write(f"**Índice de no competencia:** {100*res.get('indice_no_competencia', 0.0):.2f}%")
-            st.write(f"**Intensidad del ajuste:** {res.get('gamma_no_competencia', 0.0):.3f}")
-            st.write(f"**Ajuste aplicado al puntaje contractual:** {100*res.get('ajuste_no_competencia_aplicado', 0.0):.2f}%")
+#            st.write(f"**Índice de no competencia:** {100*res.get('indice_no_competencia', 0.0):.2f}%")
+#            st.write(f"**Intensidad del ajuste:** {res.get('gamma_no_competencia', 0.0):.3f}")
+#            st.write(f"**Ajuste aplicado al puntaje contractual:** {100*res.get('ajuste_no_competencia_aplicado', 0.0):.2f}%")
             st.write(f"**Puntaje final de riesgo:** {res['score']:.1f} / 100")
             st.write(f"**Probabilidad estimada de riesgo:** {100*res['p']:.1f}%")
             st.write(f"**Clasificación:** {res['bucket']}")
