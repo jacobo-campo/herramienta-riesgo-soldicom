@@ -809,6 +809,8 @@ def compute_score(params: dict, inputs: dict, puntaje_no_competencia: float = 0.
         "control_operativo": yesno(inputs["control_operativo"]),
         "sancion_mayorista": yesno(inputs["sancion_mayorista"]),
         "datos_compartidos": yesno(inputs["datos_compartidos"]),
+        "notificacion_tercero": yesno(inputs["notificacion_tercero"]),
+        "mejora_oferta_mayorista": yesno(inputs["mejora_oferta_mayorista"]),
     }
 
 
@@ -904,13 +906,15 @@ with st.sidebar:
     st.header("Parámetros del modelo")
 
     w = {
-        "exclusividad": st.slider("Peso: Exclusividad", 0, 30, 15),
+        "exclusividad": st.slider("Peso: Exclusividad", 0, 30, 12),
         "duracion": st.slider("Peso: Duración en meses o equivalente", 0, 30, 10),
-        "penalidades": st.slider("Peso: Penalidades / costos salida", 0, 30, 15),
-        "clausulas_precio": st.slider("Peso: Restricciones de precio/promociones", 0, 30, 15),
-        "control_operativo": st.slider("Peso: Control operativo", 0, 30, 15),
-        "sancion_mayorista": st.slider("Peso: Sanción por parte del mayorista", 0, 30, 10),
+        "penalidades": st.slider("Peso: Penalidades / costos salida", 0, 30, 10),
+        "clausulas_precio": st.slider("Peso: Restricciones de precio/promociones", 0, 30, 10),
+        "control_operativo": st.slider("Peso: Control operativo", 0, 30, 10),
+        "sancion_mayorista": st.slider("Peso: Sanción por parte del mayorista", 0, 30, 8),
         "datos_compartidos": st.slider("Peso: Intercambio info sensible", 0, 30, 20),
+        "notificacion_tercero": st.slider("Peso: Notificación de propuesta de tercero", 0, 30, 10),
+        "mejora_oferta_mayorista": st.slider("Peso: Mayorista mejora oferta de tercero", 0, 30, 10),
     }
 
     total_pesos = sum(w.values())
@@ -1145,6 +1149,8 @@ def build_pdf_report(
         "control_operativo": "Control operativo del mayorista",
         "sancion_mayorista": "Sanción por parte del mayorista",
         "datos_compartidos": "Intercambio de información sensible",
+        "notificacion_tercero": "Obligación de notificar propuesta de tercero",
+        "mejora_oferta_mayorista": "Mayorista mejora propuesta de tercero",
     }
 
     for k, label in labels_inputs.items():
@@ -1384,6 +1390,8 @@ HISTORY_HEADERS = [
     "valor_control_operativo",
     "valor_sancion_mayorista",
     "valor_datos_compartidos",
+    "valor_notificacion_tercero",
+    "valor_mejora_oferta_mayorista",
 ]
 
 
@@ -1477,6 +1485,8 @@ def build_history_row(res: dict, eds_info: dict, competitors_df: pd.DataFrame) -
         inputs.get("control_operativo", ""),
         inputs.get("sancion_mayorista", ""),
         inputs.get("datos_compartidos", ""),
+        inputs.get("notificacion_tercero", ""),
+        inputs.get("mejora_oferta_mayorista", ""),
     ]
 
     return row
@@ -1705,7 +1715,19 @@ elif st.session_state.step == 2:
 
     with c3:
         st.subheader("Información")
-        datos_compartidos = st.selectbox("¿Se comparte información sensible (ventas, márgenes, estrategias locales)?", ["No", "Sí"])
+        datos_compartidos = st.selectbox(
+            "¿Se comparte información sensible (ventas, márgenes, estrategias locales)?", ["No", "Sí"]
+        )
+        
+        notificacion_tercero = st.selectbox(
+            "Cuando un tercero demuestra interés en su EDS, ¿está obligado a notificar a su mayorista sobre esa propuesta?",
+            ["No", "Sí"]
+        )
+        
+        mejora_oferta_mayorista = st.selectbox(
+            "En la vida práctica, ¿el mayorista presenta ofertas que mejoran la propuesta del tercero?",
+            ["No", "Sí"]
+        )
 
     st.markdown('<hr class="soft-hr"/>', unsafe_allow_html=True)
 
@@ -1730,6 +1752,8 @@ elif st.session_state.step == 2:
                 "control_operativo": control_operativo,
                 "sancion_mayorista": sancion_mayorista,
                 "datos_compartidos": datos_compartidos,
+                "notificacion_tercero": notificacion_tercero,
+                "mejora_oferta_mayorista": mejora_oferta_mayorista,
             }
 
             puntaje_no_competencia = 0.0
