@@ -353,7 +353,11 @@ with col_logo:
     except Exception:
         st.write("Logo no disponible")
 with col_title:
-    st.title("Herramienta de identificación de riesgos de pérdida de competencia")
+#    st.title("Herramienta de identificación de riesgos de pérdida de competencia")
+    st.markdown(
+        '<h1 style="color:#1A3D75; font-weight:800;">Herramienta de identificación de riesgos de pérdida de competencia</h1>',
+        unsafe_allow_html=True
+    )
     st.caption("Acuerdos verticales – Distribución minorista de combustibles líquidos (Fondo SOLDICOM)")
 
 st.markdown('<hr class="soft-hr"/>', unsafe_allow_html=True)
