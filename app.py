@@ -24,7 +24,7 @@ st.set_page_config(
 # -----------------------------
 # BRAND (colores alusivos a fondosoldicom.com)
 # -----------------------------
-PRIMARY = "#1A3D75"     # azul
+PRIMARY = "#000080"     # azul
 PRIMARY_2 = "#304F83"   # azul secundario
 BG = "#EFF8FE"          # fondo claro azulado
 TEXT = "#0F172A"
@@ -355,7 +355,7 @@ with col_logo:
 with col_title:
 #    st.title("Herramienta de identificación de riesgos de pérdida de competencia")
     st.markdown(
-        '<h1 style="color:#1A3D75; font-weight:800;">Herramienta de identificación de riesgos de pérdida de competencia</h1>',
+        '<h1 style="color:#000080; font-weight:800;">Herramienta de identificación de riesgos de pérdida de competencia</h1>',
         unsafe_allow_html=True
     )
     st.caption("Acuerdos verticales – Distribución minorista de combustibles líquidos (Fondo SOLDICOM)")
@@ -971,7 +971,7 @@ def build_pdf_report(
     top_y = page_h - 40
     bottom_limit = 80
 
-    PRIMARY = HexColor("#1A3D75")
+    PRIMARY = HexColor("#000080")
     TEXT = HexColor("#0F172A")
     MUTED = HexColor("#475569")
     LIGHT_LINE = HexColor("#CBD5E1")
