@@ -1536,6 +1536,18 @@ Esta herramienta permite **identificar y priorizar** riesgos potenciales derivad
 
 **Salida:** puntaje (0–100), probabilidad estimada y semáforo (bajo/medio/alto), con explicabilidad (drivers).
 """)
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stAlert"] div[data-testid="stMarkdownContainer"] p {
+            color: #1A3D75 !important;
+            font-weight: 600 !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+    
     st.info("Haz clic en **Continuar** para diligenciar la información del contrato.")
     st.markdown("</div>", unsafe_allow_html=True)
 
