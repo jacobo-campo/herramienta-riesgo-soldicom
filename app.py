@@ -1904,9 +1904,24 @@ else:
             st.write(f"**Probabilidad estimada de riesgo:** {100*res['p']:.1f}%")
             st.write(f"**Clasificación:** {res['bucket']}")
 
-            st.info(
-                "El resultado tiene carácter preventivo y orientador. "
-                "No constituye una determinación de infracción ni sustituye un análisis jurídico-económico de fondo."
+#            st.info(
+#                "El resultado tiene carácter preventivo y orientador. "
+#                "No constituye una determinación de infracción ni sustituye un análisis jurídico-económico de fondo."
+#            )
+
+            st.markdown(
+                """
+                <p style="
+                    color:#1A3D75;
+                    font-weight:600;
+                    font-size:15px;
+                    margin-top:12px;
+                    margin-bottom:12px;
+                ">
+                    El resultado tiene carácter preventivo y orientador. No constituye una determinación de infracción ni sustituye un análisis jurídico-económico de fondo.
+                </p>
+                """,
+                unsafe_allow_html=True
             )
 
 
