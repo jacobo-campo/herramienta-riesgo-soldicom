@@ -2027,29 +2027,33 @@ else:
 #                        "Nota: esta herramienta tiene un carácter preventivo y orientador. "
 #                        "El semáforo no constituye una determinación de infracción ni sustituye el análisis jurídico o económico de fondo."
 #                    )
-                    
                     st.markdown(
                         """
                         <div style="
-                            background-color:#173A63;
-                            color:#EFF8FE !important;
-                            padding:18px 22px;
-                            border-radius:10px;
-                            font-size:16px;
-                            line-height:1.55;
-                            font-weight:500;
+                            background-color:#1E497D;
+                            border-radius:14px;
+                            padding:22px 24px;
                             margin-top:18px;
                         ">
-                            <strong style="color:#FFFFFF !important;">Nota:</strong>
-                            esta herramienta tiene un carácter preventivo y orientador.
-                            El semáforo no constituye una determinación de infracción ni sustituye
-                            el análisis jurídico o económico de fondo.
+                            <p style="
+                                color:#F8FAFC !important;
+                                font-size:16px;
+                                line-height:1.6;
+                                margin:0;
+                                font-weight:500;
+                            ">
+                                <span style="color:#FFFFFF !important; font-weight:800;">Nota:</span>
+                                <span style="color:#F8FAFC !important;">
+                                    esta herramienta tiene un carácter preventivo y orientador. 
+                                    El semáforo no constituye una determinación de infracción ni sustituye 
+                                    el análisis jurídico o económico de fondo.
+                                </span>
+                            </p>
                         </div>
                         """,
                         unsafe_allow_html=True
                     )
-
-                
+                    
 
                 if st.button("📌 Lectura rápida de los resultados"):
                     lectura_rapida_dialog()
