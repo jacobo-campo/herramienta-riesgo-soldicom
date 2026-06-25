@@ -2023,10 +2023,33 @@ else:
                         """
                     )
 
-                    st.info(
-                        "Nota: esta herramienta tiene un carácter preventivo y orientador. "
-                        "El semáforo no constituye una determinación de infracción ni sustituye el análisis jurídico o económico de fondo."
+#                    st.info(
+#                        "Nota: esta herramienta tiene un carácter preventivo y orientador. "
+#                        "El semáforo no constituye una determinación de infracción ni sustituye el análisis jurídico o económico de fondo."
+#                    )
+                    
+                    st.markdown(
+                        """
+                        <div style="
+                            background-color:#173A63;
+                            color:#EFF8FE !important;
+                            padding:18px 22px;
+                            border-radius:10px;
+                            font-size:16px;
+                            line-height:1.55;
+                            font-weight:500;
+                            margin-top:18px;
+                        ">
+                            <strong style="color:#FFFFFF !important;">Nota:</strong>
+                            esta herramienta tiene un carácter preventivo y orientador.
+                            El semáforo no constituye una determinación de infracción ni sustituye
+                            el análisis jurídico o económico de fondo.
+                        </div>
+                        """,
+                        unsafe_allow_html=True
                     )
+
+                
 
                 if st.button("📌 Lectura rápida de los resultados"):
                     lectura_rapida_dialog()
