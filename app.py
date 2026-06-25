@@ -1909,19 +1909,27 @@ else:
 #                "No constituye una determinación de infracción ni sustituye un análisis jurídico-económico de fondo."
 #            )
 
+
             st.markdown(
                 """
-                <p style="
-                    color:#1A3D75;
-                    font-weight:600;
-                    font-size:15px;
-                    margin-top:12px;
-                    margin-bottom:12px;
-                ">
-                    El resultado tiene carácter preventivo y orientador. No constituye una determinación de infracción ni sustituye un análisis jurídico-económico de fondo.
-                </p>
+                <style>
+                div[data-testid="stAlert"] div[data-testid="stMarkdownContainer"] p {
+                    color: #1A3D75 !important;
+                    font-weight: 500 !important;
+                }
+
+                div[data-testid="stAlert"] div[data-testid="stMarkdownContainer"] strong {
+                    color: #1A3D75 !important;
+                    font-weight: 800 !important;
+                }
+                </style>
                 """,
                 unsafe_allow_html=True
+            )
+
+            st.info(
+                "El resultado tiene carácter **preventivo y orientador**. "
+                "No constituye una determinación de infracción ni sustituye un análisis jurídico-económico de fondo."
             )
 
 
