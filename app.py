@@ -1541,7 +1541,12 @@ Esta herramienta permite **identificar y priorizar** riesgos potenciales derivad
         <style>
         div[data-testid="stAlert"] div[data-testid="stMarkdownContainer"] p {
             color: #1A3D75 !important;
-            font-weight: 600 !important;
+            font-weight: 500 !important;
+        }
+
+        div[data-testid="stAlert"] div[data-testid="stMarkdownContainer"] strong {
+            color: #1A3D75 !important;
+            font-weight: 800 !important;
         }
         </style>
         """,
