@@ -11,6 +11,9 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.colors import HexColor
+from reportlab.platypus import Image as RLImage, Spacer
+from reportlab.lib.units import inch
+from PIL import Image as PILImage
 
 # -----------------------------
 # CONFIG
@@ -945,6 +948,25 @@ params = {
     "center": center,
 }
 
+def pdf_image_keep_ratio(path, max_width=2.2*inch, max_height=1.7*inch):
+    """
+    Inserta una imagen en el PDF conservando su proporción original.
+    Evita que el logo se vea aplastado.
+    """
+    with PILImage.open(path) as img:
+        original_width, original_height = img.size
+
+    scale = min(
+        max_width / original_width,
+        max_height / original_height
+    )
+
+    return RLImage(
+        path,
+        width=original_width * scale,
+        height=original_height * scale
+    )
+
 def build_pdf_report(
     res: dict,
     logo_path: str = None,
@@ -993,7 +1015,7 @@ def build_pdf_report(
                     margin_x,
                     15,
                     width=190,
-                    height=42,
+                    height=80,
                     mask="auto"
                 )
         except Exception:
