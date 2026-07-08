@@ -180,19 +180,71 @@ section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] > label span {{
    FIX: Dialog / Modal (Lectura rápida)
    ========================= */
 
-div[role="dialog"] p,
-div[role="dialog"] li,
-div[role="dialog"] span {{
-    color: #F8FAFC !important;   /* blanco suave */
+div[role="dialog"],
+[data-testid="stDialog"],
+[data-testid="stModal"] {{
+    background-color: #0F172A !important;
+    color: #F8FAFC !important;
+}}
+
+div[role="dialog"] *,
+[data-testid="stDialog"] *,
+[data-testid="stModal"] * {{
+    color: #F8FAFC !important;
     opacity: 1 !important;
 }}
 
 div[role="dialog"] h1,
 div[role="dialog"] h2,
 div[role="dialog"] h3,
-div[role="dialog"] h4 {{
+div[role="dialog"] h4,
+[data-testid="stDialog"] h1,
+[data-testid="stDialog"] h2,
+[data-testid="stDialog"] h3,
+[data-testid="stDialog"] h4 {{
     color: #FFFFFF !important;
-    font-weight: 700 !important;
+    font-weight: 800 !important;
+}}
+
+div[role="dialog"] input,
+[data-testid="stDialog"] input {{
+    color: #F8FAFC !important;
+    background-color: #1E293B !important;
+    border: 1px solid #475569 !important;
+}}
+
+div[role="dialog"] input::placeholder,
+[data-testid="stDialog"] input::placeholder {{
+    color: #CBD5E1 !important;
+    opacity: 1 !important;
+}}
+
+div[role="dialog"] button,
+[data-testid="stDialog"] button {{
+    color: #F8FAFC !important;
+    border-color: #64748B !important;
+}}
+
+div[role="dialog"] .modal-note,
+[data-testid="stDialog"] .modal-note {{
+    background-color: #1E497D !important;
+    border-radius: 14px !important;
+    padding: 22px 24px !important;
+    margin-top: 18px !important;
+}}
+
+div[role="dialog"] .modal-note,
+div[role="dialog"] .modal-note *,
+[data-testid="stDialog"] .modal-note,
+[data-testid="stDialog"] .modal-note * {{
+    color: #F8FAFC !important;
+    opacity: 1 !important;
+}}
+
+div[role="dialog"] .modal-note strong,
+[data-testid="stDialog"] .modal-note strong {{
+    color: #FFFFFF !important;
+    font-weight: 800 !important;
 }}
 
 /* =========================
@@ -2028,34 +2080,23 @@ else:
 #                        "Nota: esta herramienta tiene un carácter preventivo y orientador. "
 #                        "El semáforo no constituye una determinación de infracción ni sustituye el análisis jurídico o económico de fondo."
 #                    )
+
+
                     st.markdown(
                         """
-                        <div style="
-                            background-color:#1E497D;
-                            border-radius:14px;
-                            padding:22px 24px;
-                            margin-top:18px;
-                        ">
-                            <p style="
-                                color:#F8FAFC !important;
-                                font-size:16px;
-                                line-height:1.6;
-                                margin:0;
-                                font-weight:500;
-                            ">
-                                <span style="color:#FFFFFF !important; font-weight:800;">Nota:</span>
-                                <span style="color:#F8FAFC !important;">
-                                    esta herramienta tiene un carácter preventivo y orientador. 
-                                    El semáforo no constituye una determinación de infracción ni sustituye 
-                                    el análisis jurídico o económico de fondo.
-                                </span>
+                        <div class="modal-note">
+                            <p style="font-size:16px; line-height:1.6; margin:0; font-weight:500;">
+                                <strong>Nota:</strong>
+                                esta herramienta tiene un carácter preventivo y orientador.
+                                El semáforo no constituye una determinación de infracción ni sustituye
+                                el análisis jurídico o económico de fondo.
                             </p>
                         </div>
                         """,
                         unsafe_allow_html=True
                     )
-                    
 
+                
                 if st.button("📌 Lectura rápida de los resultados"):
                     lectura_rapida_dialog()
 
