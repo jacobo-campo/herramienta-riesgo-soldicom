@@ -46,3 +46,46 @@ Despues de cualquier cambio de dependencias, regenere el archivo compatible con 
 ```powershell
 uv export --format requirements-txt --no-hashes --output-file requirements.txt
 ```
+
+## Credenciales de Google Sheets
+
+La aplicacion conserva el contrato de configuracion de `st.secrets`. Cree el archivo local a partir del ejemplo y reemplace todos los marcadores:
+
+```powershell
+Copy-Item .streamlit/secrets.toml.example .streamlit/secrets.toml
+```
+
+`.streamlit/secrets.toml` esta excluido de Git y de la imagen Docker. No incorpore credenciales reales al repositorio.
+
+## Docker
+
+Construya la imagen:
+
+```powershell
+docker build -t herramienta-riesgo-soldicom:local .
+```
+
+Ejecute el contenedor con Compose despues de crear `.streamlit/secrets.toml`:
+
+```powershell
+$env:STREAMLIT_SECRETS_FILE = (Resolve-Path .streamlit/secrets.toml).Path
+docker compose up --build -d
+```
+
+La aplicacion queda disponible en `http://localhost:8501`. Para usar otro puerto del host, establezca `APP_PORT` antes de ejecutar Compose. `APP_HOST` usa `127.0.0.1` por defecto; en un VPS puede establecerse en `0.0.0.0` si la aplicacion debe exponerse directamente por el puerto publicado.
+
+`STREAMLIT_SECRETS_FILE` es obligatorio y debe contener una ruta absoluta a un archivo existente. Compose lo carga como una configuracion de solo lectura y el servicio rechaza directorios o rutas invalidas.
+
+Verifique el estado del servicio:
+
+```powershell
+Invoke-WebRequest -UseBasicParsing http://localhost:8501/_stcore/health
+docker compose ps
+docker compose logs soldicom
+```
+
+Detenga la aplicacion con:
+
+```powershell
+docker compose down
+```
