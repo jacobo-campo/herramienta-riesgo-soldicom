@@ -1521,44 +1521,44 @@ def build_pdf_report(
     # -----------------------------
     # 2. Mercado relevante
     # -----------------------------
-    y = section_title(y, "2. Mercado relevante y competidores")
+    y = section_title(y, "2. Mercado relevante")
 
     n_comp = 0 if competitors_df is None else len(competitors_df)
     y = draw_key_value(y, "Competidores identificados", n_comp)
 
-    if competitors_df is not None and not competitors_df.empty:
-        y -= 4
-        y = check_space(y, 35)
-
-        # Encabezado tabla
-        c.setFillColor(PRIMARY)
-        c.setFont("Helvetica-Bold", 8)
-        c.drawString(50, y, "COMPETIDOR")
-        c.drawString(135, y, "NOMBRE COMERCIAL")
-        c.drawString(420, y, "BANDERA")
-        y -= 8
-
-        c.setStrokeColor(LIGHT_LINE)
-        c.line(50, y, page_w - 50, y)
-        y -= 10
-
-        c.setFillColor(TEXT)
-        c.setFont("Helvetica", 8)
-
-        for _, row in competitors_df.iterrows():
-            y = check_space(y, 18)
-
-            comp = truncate_text(row.get("COMPETIDOR", ""), 14)
-            nom = truncate_text(row.get("NOMBRE_COMERCIAL_COMPETIDOR", ""), 55)
-            bandera = truncate_text(row.get("BANDERA_COMPETIDOR", ""), 18)
-
-            c.drawString(50, y, comp)
-            c.drawString(135, y, nom)
-            c.drawString(420, y, bandera)
-
-            y -= 11
-    else:
-        y = draw_key_value(y, "Competidores", "No se identificaron competidores para el SICOM consultado")
+##    if competitors_df is not None and not competitors_df.empty:
+##        y -= 4
+##        y = check_space(y, 35)
+##
+##        # Encabezado tabla
+##        c.setFillColor(PRIMARY)
+##        c.setFont("Helvetica-Bold", 8)
+##        c.drawString(50, y, "COMPETIDOR")
+##        c.drawString(135, y, "NOMBRE COMERCIAL")
+##        c.drawString(420, y, "BANDERA")
+##        y -= 8
+##
+##        c.setStrokeColor(LIGHT_LINE)
+##        c.line(50, y, page_w - 50, y)
+##        y -= 10
+##
+##        c.setFillColor(TEXT)
+##        c.setFont("Helvetica", 8)
+##
+##        for _, row in competitors_df.iterrows():
+##            y = check_space(y, 18)
+##
+##            comp = truncate_text(row.get("COMPETIDOR", ""), 14)
+##            nom = truncate_text(row.get("NOMBRE_COMERCIAL_COMPETIDOR", ""), 55)
+##            bandera = truncate_text(row.get("BANDERA_COMPETIDOR", ""), 18)
+##
+##            c.drawString(50, y, comp)
+##            c.drawString(135, y, nom)
+##            c.drawString(420, y, bandera)
+##
+##            y -= 11
+##    else:
+##        y = draw_key_value(y, "Competidores", "No se identificaron competidores para el SICOM consultado")
 
     y -= 10
 
@@ -2109,8 +2109,8 @@ elif st.session_state.step == 2:
         </div>
         """, unsafe_allow_html=True)
 
-        with st.expander("Ver competidores del mercado relevante"):
-            render_competitors_table(competitors_df)
+##        with st.expander("Ver competidores del mercado relevante"):
+##            render_competitors_table(competitors_df)
         
         st.markdown('<hr class="soft-hr"/>', unsafe_allow_html=True)
 
@@ -2328,8 +2328,8 @@ else:
                 unsafe_allow_html=True
             )
 
-            with st.expander("Ver competidores del mercado relevante"):
-                render_competitors_table(competitors_df)
+##            with st.expander("Ver competidores del mercado relevante"):
+##                render_competitors_table(competitors_df)
             
             st.markdown('<hr class="soft-hr"/>', unsafe_allow_html=True)
         
