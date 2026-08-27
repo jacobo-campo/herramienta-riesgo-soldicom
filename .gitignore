@@ -1,0 +1,22 @@
+# Python
+.venv/
+.uv-cache/
+.uv-python/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# IDE
+.idea/
+.vscode/
+
+# Secrets and local environment
+.streamlit/secrets.toml
+.env
+.env.*
+!.env.example
+
+# Operating system
+.DS_Store
+Thumbs.db

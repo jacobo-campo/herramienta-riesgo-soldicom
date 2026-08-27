@@ -1,0 +1,19 @@
+[project]
+name = "herramienta-riesgo-soldicom"
+version = "0.1.0"
+description = "Herramienta de identificacion de riesgos de perdida de competencia para SOLDICOM"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "google-auth",
+    "gspread",
+    "numpy",
+    "openpyxl",
+    "pandas",
+    "pillow",
+    "reportlab",
+    "streamlit",
+]
+
+[tool.uv]
+package = false
