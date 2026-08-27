@@ -14,8 +14,6 @@ blinker==1.9.0
     # via streamlit
 certifi==2026.7.22
     # via requests
-cffi==2.1.1 ; platform_python_implementation != 'PyPy'
-    # via cryptography
 charset-normalizer==3.5.1
     # via
     #   reportlab
@@ -26,19 +24,8 @@ click==8.4.2
     #   uvicorn
 colorama==0.4.6 ; sys_platform == 'win32'
     # via click
-cryptography==50.0.0
-    # via google-auth
 et-xmlfile==2.0.0
     # via openpyxl
-google-auth==2.56.3
-    # via
-    #   google-auth-oauthlib
-    #   gspread
-    #   herramienta-riesgo-soldicom
-google-auth-oauthlib==1.4.0
-    # via gspread
-gspread==6.2.1
-    # via herramienta-riesgo-soldicom
 h11==0.16.0
     # via uvicorn
 httptools==0.8.0
@@ -67,8 +54,6 @@ numpy==2.4.6
     #   pandas
     #   pydeck
     #   streamlit
-oauthlib==3.3.1
-    # via requests-oauthlib
 openpyxl==3.1.5
     # via herramienta-riesgo-soldicom
 packaging==26.3
@@ -88,12 +73,6 @@ protobuf==7.36.0
     # via streamlit
 pyarrow==25.0.1
     # via streamlit
-pyasn1==0.6.4
-    # via pyasn1-modules
-pyasn1-modules==0.4.2
-    # via google-auth
-pycparser==3.0 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
-    # via cffi
 pydeck==0.9.3
     # via streamlit
 python-dateutil==2.9.0.post0
@@ -107,11 +86,7 @@ referencing==0.37.0
 reportlab==5.0.1
     # via herramienta-riesgo-soldicom
 requests==2.34.2
-    # via
-    #   requests-oauthlib
-    #   streamlit
-requests-oauthlib==2.0.0
-    # via google-auth-oauthlib
+    # via streamlit
 rpds-py==2026.6.3
     # via
     #   jsonschema
