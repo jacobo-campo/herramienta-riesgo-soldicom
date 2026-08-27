@@ -5,14 +5,18 @@ import pandas as pd
 from PIL import Image
 import io
 import base64
-import gspread
-from google.oauth2.service_account import Credentials
+import logging
+from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.colors import HexColor
+from history_storage import build_evaluation_record, save_evaluation
+
+
+logger = logging.getLogger(__name__)
 
 # -----------------------------
 # CONFIG
@@ -632,6 +636,12 @@ if "eds_info" not in st.session_state:
 if "competitors_df" not in st.session_state:
     st.session_state.competitors_df = pd.DataFrame()
 
+if "pending_evaluation_record" not in st.session_state:
+    st.session_state.pending_evaluation_record = None
+
+if "history_saved" not in st.session_state:
+    st.session_state.history_saved = None
+
 if "_scroll_to_top" not in st.session_state:
     st.session_state["_scroll_to_top"] = True
 
@@ -645,6 +655,8 @@ def reset_app():
     st.session_state.sicom_code = None
     st.session_state.eds_info = None
     st.session_state.competitors_df = pd.DataFrame()
+    st.session_state.pending_evaluation_record = None
+    st.session_state.history_saved = None
     st.session_state["_scroll_to_top"] = True
 
 # Fuerza la vista al inicio de la página al cargar y después de cada cambio de paso.
@@ -1807,169 +1819,20 @@ def render_footer():
     )
 
 # ======================================================
-# HISTÓRICO EN GOOGLE SHEETS
+# HISTÓRICO LOCAL
 # ======================================================
 
-HISTORY_HEADERS = [
-    "Fecha y Hora",
-    "Puntaje_contractual",
-    "Ajuste_no_competencia_%",
-    "Puntaje_no_competencia_raw",
-    "Indice_no_competencia",
-    "Gamma_no_competencia",
-    "Factor_ajuste_no_competencia",
-    "Puntaje_final",
-    "Probabilidad_%",
-    "Semáforo",
-    "Bucket",
-    "SICOM",
-    "Nombre_EDS",
-    "Bandera_EDS",
-    "Departamento",
-    "Municipio",
-    "Numero_competidores",
-    "ALPHA_1",
-    "ALPHA_2",
-    "ALPHA_3",
-    "valor_exclusividad",
-    "valor_tipo_duracion",
-    "valor_duracion_meses",
-    "valor_penalidades",
-    "valor_clausulas_precio",
-    "valor_control_operativo",
-    "valor_sancion_mayorista",
-    "valor_datos_compartidos",
-    "valor_notificacion_tercero",
-    "valor_mejora_oferta_mayorista",
-    "valor_precio_bajo_margen",
-    "valor_tribunal_sin_arreglo",
-]
-
-
-@st.cache_resource(show_spinner=False)
-def get_gsheet_worksheet():
-    """
-    Conecta con Google Sheets usando credenciales guardadas en Streamlit Secrets.
-    """
-
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-    ]
-
-    service_account_info = dict(st.secrets["gcp_service_account"])
-
-    # Evita errores con saltos de línea en private_key
-    if "private_key" in service_account_info:
-        service_account_info["private_key"] = service_account_info["private_key"].replace("\\n", "\n")
-
-    credentials = Credentials.from_service_account_info(
-        service_account_info,
-        scopes=scopes
-    )
-
-    client = gspread.authorize(credentials)
-
-    spreadsheet_id = st.secrets["gcp_sheet"]["spreadsheet_id"]
-    worksheet_name = st.secrets["gcp_sheet"].get("worksheet_name", "Historico")
-
-    spreadsheet = client.open_by_key(spreadsheet_id)
+def try_save_evaluation(record: dict) -> bool:
+    """Persiste una evaluación sin impedir que el usuario vea su resultado."""
 
     try:
-        worksheet = spreadsheet.worksheet(worksheet_name)
-    except gspread.WorksheetNotFound:
-        worksheet = spreadsheet.add_worksheet(
-            title=worksheet_name,
-            rows=1000,
-            cols=len(HISTORY_HEADERS)
-        )
-
-    return worksheet
-
-
-def ensure_history_headers(worksheet):
-    """
-    Crea encabezados si la hoja está vacía.
-    """
-
-    first_row = worksheet.row_values(1)
-
-    if not first_row:
-        worksheet.append_row(
-            HISTORY_HEADERS,
-            value_input_option="USER_ENTERED"
-        )
-
-
-def build_history_row(res: dict, eds_info: dict, competitors_df: pd.DataFrame) -> list:
-    """
-    Construye una fila del histórico con la estructura requerida.
-    """
-
-    inputs = res.get("inputs", {})
-
-    row = [
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        round(res.get("score_preguntas", res.get("score", 0)), 4),
-        round(100 * res.get("ajuste_no_competencia_aplicado", 0.0), 6),
-        round(res.get("puntaje_no_competencia", 0.0), 8),
-        round(res.get("indice_no_competencia", 0.0), 8),
-        round(res.get("gamma_no_competencia", 0.0), 8),
-        round(res.get("factor_ajuste_no_competencia", 1.0), 8),
-        round(res.get("score", 0), 4),
-        round(100 * res.get("p", 0), 4),
-        res.get("label", ""),
-        res.get("bucket", ""),
-        eds_info.get("SICOM", "") if eds_info else "",
-        eds_info.get("NOMBRE COMERCIAL", "") if eds_info else "",
-        eds_info.get("BANDERA", "") if eds_info else "",
-        eds_info.get("DEPARTAMENTO", "") if eds_info else "",
-        eds_info.get("MUNICIPIO", "") if eds_info else "",
-        eds_info.get("COMPETIDORES_IDENTIFICADOS", 0) if eds_info else 0,
-        round(eds_info.get("ALPHA_1", 0.0), 6) if eds_info else 0,
-        round(eds_info.get("ALPHA_2", 0.0), 6) if eds_info else 0,
-        round(eds_info.get("ALPHA_3", 0.0), 6) if eds_info else 0,
-        inputs.get("exclusividad", ""),
-        inputs.get("tipo_duracion", ""),
-        inputs.get("duracion_meses", ""),
-        inputs.get("penalidades", ""),
-        inputs.get("clausulas_precio", ""),
-        inputs.get("control_operativo", ""),
-        inputs.get("sancion_mayorista", ""),
-        inputs.get("datos_compartidos", ""),
-        inputs.get("notificacion_tercero", ""),
-        inputs.get("mejora_oferta_mayorista", ""),
-        inputs.get("precio_bajo_margen", ""),
-        inputs.get("tribunal_sin_arreglo", ""),
-    ]
-
-    return row
-
-
-def save_result_to_history(res: dict, eds_info: dict, competitors_df: pd.DataFrame) -> bool:
-    """
-    Guarda una evaluación en el Google Sheet histórico.
-    Devuelve True si guardó correctamente y False si falló.
-    """
-
-    try:
-        worksheet = get_gsheet_worksheet()
-        ensure_history_headers(worksheet)
-
-        row = build_history_row(
-            res=res,
-            eds_info=eds_info,
-            competitors_df=competitors_df
-        )
-
-        worksheet.append_row(
-            row,
-            value_input_option="USER_ENTERED"
-        )
-
+        save_evaluation(record)
         return True
-
-    except Exception as e:
-        st.session_state["history_error"] = str(e)
+    except Exception:
+        logger.exception(
+            "No fue posible guardar la evaluación %s en el histórico local.",
+            record.get("evaluation_id", "desconocida"),
+        )
         return False
 
 # -----------------------------
@@ -2261,14 +2124,14 @@ elif st.session_state.step == 2:
 
             st.session_state.result = res_tmp
 
-            # Guardar histórico en Google Sheets
-            history_saved = save_result_to_history(
+            evaluation_record = build_evaluation_record(
                 res=res_tmp,
                 eds_info=st.session_state.get("eds_info", {}),
-                competitors_df=st.session_state.get("competitors_df", pd.DataFrame())
+                evaluation_id=str(uuid4()),
             )
 
-            st.session_state["history_saved"] = history_saved
+            st.session_state.pending_evaluation_record = evaluation_record
+            st.session_state.history_saved = try_save_evaluation(evaluation_record)
 
             go(3)
             st.rerun()
@@ -2292,6 +2155,20 @@ else:
     else:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.header("Resultados")
+
+        pending_evaluation_record = st.session_state.get("pending_evaluation_record")
+        if st.session_state.get("history_saved") is True:
+            st.caption("✓ Evaluación registrada en el histórico local.")
+        elif pending_evaluation_record is not None:
+            st.warning(
+                "El resultado se calculó correctamente, pero no fue posible registrarlo "
+                "en el histórico local."
+            )
+            if st.button("Reintentar registro", key="retry_history_save"):
+                st.session_state.history_saved = try_save_evaluation(
+                    pending_evaluation_record
+                )
+                st.rerun()
 
 
         # -----------------------------

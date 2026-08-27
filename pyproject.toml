@@ -5,8 +5,6 @@ description = "Herramienta de identificacion de riesgos de perdida de competenci
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
 dependencies = [
-    "google-auth",
-    "gspread",
     "numpy",
     "openpyxl",
     "pandas",
